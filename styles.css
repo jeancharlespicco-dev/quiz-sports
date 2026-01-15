@@ -1,0 +1,194 @@
+/* =========================
+   Daily Quiz — Styles (ChartGuessr-like)
+   Palette:
+   - Primary: #22C55E
+   - Dark:    #0F172A
+   - BG:      #F0FDF4
+   - Border:  #D0E5E8 / #CBD6ED
+========================= */
+
+:root{
+  --bg: #F0FDF4;
+  --card: rgba(255,255,255,0.78);
+  --card-solid: #FFFFFF;
+
+  --text: #0F172A;
+  --muted: rgba(15,23,42,0.65);
+
+  --primary: #22C55E;
+  --primary-600: #16A34A;
+  --primary-700: #15803D;
+
+  --border: rgba(15,23,42,0.12);
+  --border-strong: rgba(15,23,42,0.18);
+
+  --shadow: 0 10px 30px rgba(15,23,42,0.08);
+
+  --radius: 18px;
+  --radius-sm: 12px;
+
+  --focus: 0 0 0 4px rgba(34,197,94,0.22);
+
+  --good: #22C55E;
+  --warn: #EEA825;
+  --info: #73AFB9;
+
+  --font: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+}
+
+*{ box-sizing: border-box; }
+
+html, body{ height: 100%; }
+
+body{
+  margin: 0;
+  font-family: var(--font);
+  color: var(--text);
+  background:
+    radial-gradient(900px 600px at 15% -10%, rgba(34,197,94,0.16), transparent 60%),
+    radial-gradient(900px 600px at 90% 0%, rgba(115,175,185,0.12), transparent 55%),
+    radial-gradient(900px 600px at 40% 120%, rgba(238,168,37,0.10), transparent 55%),
+    var(--bg);
+  padding: 34px 16px;
+}
+
+/* Main container card */
+.container{
+  max-width: 720px;
+  margin: 0 auto;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 22px 20px 18px;
+}
+
+/* Title + prompt */
+#quiz-title{
+  margin: 0 0 6px;
+  font-size: 28px;
+  letter-spacing: -0.02em;
+}
+
+#quiz-prompt{
+  margin: 0 0 14px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+/* Input */
+#answer-input{
+  width: 100%;
+  padding: 14px 14px;
+  font-size: 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: rgba(255,255,255,0.88);
+  color: var(--text);
+  outline: none;
+  transition: box-shadow .15s ease, border-color .15s ease, transform .05s ease;
+}
+
+#answer-input::placeholder{
+  color: rgba(15,23,42,0.45);
+}
+
+#answer-input:focus{
+  border-color: rgba(34,197,94,0.55);
+  box-shadow: var(--focus);
+}
+
+#answer-input:active{
+  transform: translateY(1px);
+}
+
+/* Progress pill */
+#progress{
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 14px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.65);
+  font-weight: 700;
+}
+
+/* Nice little dot inside progress (optional visual) */
+#progress::before{
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--primary);
+  box-shadow: 0 0 0 3px rgba(34,197,94,0.18);
+}
+
+/* Answers list */
+#answers-list{
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+/* Each row looks like a pill/card */
+#answers-list li{
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.72);
+  transition: transform .08s ease, border-color .15s ease, background .15s ease;
+}
+
+/* Placeholder row */
+#answers-list li{
+  color: rgba(15,23,42,0.35);
+}
+
+/* Found state */
+#answers-list li.found{
+  color: var(--text);
+  font-weight: 800;
+  border-color: rgba(34,197,94,0.35);
+  background:
+    linear-gradient(0deg, rgba(34,197,94,0.10), rgba(34,197,94,0.10)),
+    rgba(255,255,255,0.72);
+}
+
+/* A small check icon-ish bubble on found items */
+#answers-list li.found::before{
+  content: "✓";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  margin-right: 10px;
+  color: white;
+  background: var(--primary);
+  box-shadow: 0 6px 16px rgba(34,197,94,0.24);
+  flex: 0 0 auto;
+}
+
+/* Improve spacing on bigger screens */
+@media (min-width: 760px){
+  body{ padding: 46px 16px; }
+  .container{ padding: 26px 26px 20px; }
+  #quiz-title{ font-size: 32px; }
+  #answers-list{ grid-template-columns: 1fr 1fr; }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce){
+  *{ transition: none !important; }
+}
