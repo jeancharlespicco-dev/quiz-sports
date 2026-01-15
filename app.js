@@ -24,6 +24,19 @@ const listEl = document.getElementById("answers-list");
 const SUPABASE_URL = "https://nkhrrigusnkufpfpotoz.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5raHJyaWd1c25rdWZwZnBvdG96Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0ODE3NzIsImV4cCI6MjA4NDA1Nzc3Mn0.2ujvv_IQMgvTeVsmwUtHZTie_q-XST1ULfSd4ZGgHRA";
 
+// Anti-crash : si la lib n'est pas chargée, on désactive le multi mais l'app reste jouable
+let SUPABASE = null;
+try {
+  if (window.supabase && SUPABASE_URL.includes("supabase.co") && SUPABASE_ANON_KEY.length > 20) {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } else {
+    console.warn("[Supabase] non initialisé (script manquant ou clés non renseignées) — mode solo.");
+  }
+} catch (e) {
+  console.warn("[Supabase] init a échoué — mode solo.", e);
+  supabase = null;
+}
+
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const othersEl = document.getElementById("others");
@@ -89,6 +102,7 @@ async function ensurePresenceRow() {
       found_count: found.size,
       finished_at: finished ? new Date().toISOString() : null,
       updated_at: new Date().toISOString()
+      
     });
 }
 
@@ -232,20 +246,32 @@ function showScreen(which) {
 // ====== Player selection ======
 function renderPlayers() {
   playerGrid.innerHTML = "";
-PLAYERS.forEach(p => {
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "player-btn";
-  btn.style.setProperty("--player-color", p.color);
-  btn.innerHTML = `
-    <span>${p.name}</span>
-    <span class="badge"><span class="dot"></span> Choisir</span>
-  `;
-  btn.addEventListener("click", () => selectPlayer(p.name, p.color));
-  playerGrid.appendChild(btn);
-});
 
+  PLAYERS.forEach(p => {
+    // Compatible si PLAYERS = ["Jice", ...] OU [{name,color}, ...]
+    const name = typeof p === "string" ? p : p.name;
+    const color = typeof p === "string" ? "" : (p.color || "");
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "player-btn";
+
+    if (color) btn.style.setProperty("--player-color", color);
+
+    btn.innerHTML = `
+      <span>${name}</span>
+      <span class="badge"><span class="dot"></span> Choisir</span>
+    `;
+
+    btn.addEventListener("click", () => {
+      // Si ton selectPlayer prend (name,color), ça marche. Sinon il ignore color.
+      selectPlayer(name, color);
+    });
+
+    playerGrid.appendChild(btn);
+  });
 }
+
 
 function selectPlayer(name, color) {
   currentPlayer = name;
