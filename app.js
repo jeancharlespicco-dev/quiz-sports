@@ -9,6 +9,8 @@
     { name: "MC", color: "#73AFB9" }  // teal
   ];
 const PLAYER_COLOR = new Map(PLAYERS.map(p => [p.name, p.color]));
+const ALLOWED_PLAYERS = new Set(PLAYERS.map(p => p.name));
+
 
   // ====== Supabase (à remplir) ======
   const SUPABASE_URL = "https://nkhrrigusnkufpfpotoz.supabase.co";
@@ -340,6 +342,7 @@ function redrawOthers() {
   if (!othersEl || !quiz) return;
 
   const rows = Object.values(othersState)
+    .filter(p => ALLOWED_PLAYERS.has(p.player_name))   // ✅ ignore "Emma" si elle n'existe plus // 
     .filter(p => (p.found_count ?? 0) > 0) // ✅ seulement ceux qui ont trouvé au moins 1
     .sort((a, b) => (b.found_count ?? 0) - (a.found_count ?? 0));
 
