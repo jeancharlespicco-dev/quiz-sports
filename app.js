@@ -190,15 +190,19 @@ const ALLOWED_PLAYERS = new Set(PLAYERS.map(p => p.name));
   }
 
   // ====== Quiz rendering ======
-  function updateUI() {
-     if (!quiz) return;
+function updateUI() {
+  const myScoreEl = document.getElementById("my-score");
+  if (!quiz || !quiz.items) {
+    if (progressEl) progressEl.textContent = "";
+    if (myScoreEl) myScoreEl.textContent = "— / —";
+    return;
+  }
 
   const text = `${found.size} / ${quiz.items.length}`;
-  progressEl.textContent = text;
-
-  const myScoreEl = document.getElementById("my-score");
+  if (progressEl) progressEl.textContent = text;
   if (myScoreEl) myScoreEl.textContent = text;
-  }
+}
+
 
   function renderList() {
     if (!quiz || !listEl) return;
