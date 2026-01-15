@@ -191,8 +191,13 @@ const ALLOWED_PLAYERS = new Set(PLAYERS.map(p => p.name));
 
   // ====== Quiz rendering ======
   function updateUI() {
-    if (!quiz || !progressEl) return;
-    progressEl.textContent = `${found.size} / ${quiz.items.length}`;
+     if (!quiz) return;
+
+  const text = `${found.size} / ${quiz.items.length}`;
+  progressEl.textContent = text;
+
+  const myScoreEl = document.getElementById("my-score");
+  if (myScoreEl) myScoreEl.textContent = text;
   }
 
   function renderList() {
