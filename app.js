@@ -1,5 +1,10 @@
 // ====== Config joueurs (tu modifies ici) ======
-const PLAYERS = ["Jice", "Léo", "Emma", "Nico"];
+const PLAYERS = [
+  { name: "Jice", color: "#4366BB" }, // bleu
+  { name: "Léo", color: "#22C55E" },  // vert
+  { name: "Emma", color: "#EEA825" }, // ambre
+  { name: "Nico", color: "#73AFB9" }  // teal
+];
 
 // ====== DOM ======
 const screenPlayer = document.getElementById("screen-player");
@@ -52,28 +57,34 @@ function showScreen(which) {
 // ====== Player selection ======
 function renderPlayers() {
   playerGrid.innerHTML = "";
-  PLAYERS.forEach(name => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "player-btn";
-    btn.innerHTML = `
-      <span>${name}</span>
-      <span class="badge"><span class="dot"></span> Choisir</span>
-    `;
-    btn.addEventListener("click", () => selectPlayer(name));
-    playerGrid.appendChild(btn);
-  });
+PLAYERS.forEach(p => {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "player-btn";
+  btn.style.setProperty("--player-color", p.color);
+  btn.innerHTML = `
+    <span>${p.name}</span>
+    <span class="badge"><span class="dot"></span> Choisir</span>
+  `;
+  btn.addEventListener("click", () => selectPlayer(p.name, p.color));
+  playerGrid.appendChild(btn);
+});
+
 }
 
-function selectPlayer(name) {
+function selectPlayer(name, color) {
   currentPlayer = name;
   localStorage.setItem("dq_player", name);
+  localStorage.setItem("dq_player_color", color || "");
 
+  // set couleur du joueur pour la pill
+  screenGame.style.setProperty("--player-color", color || "");
   playerPill.textContent = `Vous : ${name}`;
 
   showScreen("game");
   input.focus();
 }
+
 
 function clearPlayer() {
   currentPlayer = null;
@@ -168,8 +179,13 @@ renderPlayers();
 loadQuiz();
 
 const saved = localStorage.getItem("dq_player");
-if (saved && PLAYERS.includes(saved)) {
-  selectPlayer(saved);
+const savedColor = localStorage.getItem("dq_player_color") || "";
+const exists = PLAYERS.some(p => p.name === saved);
+if (saved && exists) {
+  selectPlayer(saved, savedColor);
 } else {
+  showScreen("player");
+}
+ else {
   showScreen("player");
 }
