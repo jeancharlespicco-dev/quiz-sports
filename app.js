@@ -44,6 +44,50 @@ function getTodayId() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function storageKey(quizId, playerName) {
+  return `dq_progress:${quizId}:${playerName}`;
+}
+
+function saveProgress() {
+  if (!quiz || !currentPlayer) return;
+  const key = storageKey(quiz.id || getTodayId(), currentPlayer);
+  const payload = {
+    foundAnswers: Array.from(found),
+    savedAt: Date.now()
+  };
+  localStorage.setItem(key, JSON.stringify(payload));
+}
+
+function loadProgress() {
+  if (!quiz || !currentPlayer) return;
+  const key = storageKey(quiz.id || getTodayId(), currentPlayer);
+  const raw = localStorage.getItem(key);
+  if (!raw) {
+    found = new Set();
+    return;
+  }
+
+  try {
+    const data = JSON.parse(raw);
+    const valid = new Set();
+
+    // On ne garde que les réponses qui existent dans le quiz
+    const answersSet = new Set(quiz.items.map(i => i.answer));
+    for (const a of (data.foundAnswers || [])) {
+      if (answersSet.has(a)) valid.add(a);
+    }
+    found = valid;
+  } catch {
+    found = new Set();
+  }
+}
+
+function clearProgressFor(quizId, playerName) {
+  const key = storageKey(quizId, playerName);
+  localStorage.removeItem(key);
+}
+
+
 function showScreen(which) {
   if (which === "player") {
     screenPlayer.classList.remove("hidden");
@@ -82,6 +126,10 @@ function selectPlayer(name, color) {
   playerPill.textContent = `Vous : ${name}`;
 
   showScreen("game");
+    // Charger progression locale pour ce joueur + quiz du jour
+  loadProgress();
+  updateUI();
+  renderList();
   input.focus();
 }
 
@@ -123,6 +171,8 @@ function checkAnswer(value) {
 
     if (match) {
       found.add(item.answer);
+      saveProgress();
+
       input.value = "";
       updateUI();
       renderList();
@@ -155,7 +205,10 @@ async function loadQuiz() {
   titleEl.textContent = quiz.title;
   promptEl.textContent = quiz.prompt;
 
-  found = new Set();
+found = new Set();
+if (currentPlayer) {
+  loadProgress();
+}
   input.disabled = false;
   input.value = "";
 
