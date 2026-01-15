@@ -7,7 +7,25 @@
 </head>
 <body>
 
-  <div class="container">
+  <!-- Écran sélection joueur -->
+  <div class="container" id="screen-player">
+    <h1 class="title">Qui joue aujourd’hui ?</h1>
+    <p class="subtitle">Choisis ton nom pour rejoindre le quiz du jour.</p>
+
+    <div id="player-grid" class="player-grid"></div>
+
+    <div class="hint">
+      Astuce : ton choix est mémorisé sur cet ordinateur.
+    </div>
+  </div>
+
+  <!-- Écran jeu -->
+  <div class="container hidden" id="screen-game">
+    <div class="topline">
+      <div class="player-pill" id="player-pill"></div>
+      <button class="ghost-btn" id="change-player-btn" type="button">Changer</button>
+    </div>
+
     <h1 id="quiz-title">Daily Quiz</h1>
     <p id="quiz-prompt"></p>
 
@@ -16,7 +34,6 @@
       type="text"
       placeholder="Commence à taper..."
       autocomplete="off"
-      autofocus
     />
 
     <div id="progress">0 / 0</div>
