@@ -320,20 +320,80 @@ body{
   font-weight: 650;
 }
 
+/* ===== Live players grid (compact) ===== */
 .others{
+  margin-top: 12px;
   display: grid;
-  gap: 8px;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr)); /* mobile: 2 colonnes */
 }
 
-.other-player{
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  border-radius: 14px;
+/* 6 colonnes sur desktop (donc 2 lignes pour 12 joueurs) */
+@media (min-width: 760px){
+  .others{
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.other-card{
   border: 1px solid var(--border);
   background: rgba(255,255,255,0.62);
+  border-radius: 16px;
+  padding: 10px 10px 9px;
+  min-height: 78px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
+
+.other-top{
+  display:flex;
+  align-items:center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.other-dot{
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--player-color, rgba(67,102,187,0.9));
+  box-shadow: 0 0 0 3px rgba(15,23,42,0.08);
+  flex: 0 0 auto;
+}
+
+.other-name{
+  font-weight: 650;
+  color: rgba(15,23,42,0.85);
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.other-score{
+  margin-top: 8px;
+  font-weight: 650;
+  color: rgba(15,23,42,0.72);
+  font-size: 13px;
+}
+
+/* Petite pill "Fini" optionnelle */
+.other-fini{
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 750;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(34,197,94,0.25);
+  background: rgba(34,197,94,0.10);
+  color: rgba(15,23,42,0.82);
+  width: fit-content;
+}
+
 
 .other-left{
   display:flex;

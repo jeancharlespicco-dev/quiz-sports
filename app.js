@@ -3,11 +3,12 @@
 
   // ====== Config joueurs (tu modifies ici) ======
   const PLAYERS = [
-    { name: "Jice", color: "#4366BB" }, // bleu
-    { name: "Léo", color: "#22C55E" },  // vert
-    { name: "Emma", color: "#EEA825" }, // ambre
-    { name: "Nico", color: "#73AFB9" }  // teal
+    { name: "JCP", color: "#4366BB" }, // bleu
+    { name: "TSP", color: "#22C55E" },  // vert
+    { name: "XL", color: "#EEA825" }, // ambre
+    { name: "MC", color: "#73AFB9" }  // teal
   ];
+const PLAYER_COLOR = new Map(PLAYERS.map(p => [p.name, p.color]));
 
   // ====== Supabase (à remplir) ======
   const SUPABASE_URL = "https://nkhrrigusnkufpfpotoz.supabase.co";
@@ -335,58 +336,57 @@
       });
   }
 
-  function redrawOthers() {
-    if (!othersEl || !quiz) return;
+function redrawOthers() {
+  if (!othersEl || !quiz) return;
 
-    const rows = Object.values(othersState)
-      .sort((a, b) => (b.found_count ?? 0) - (a.found_count ?? 0));
+  const rows = Object.values(othersState)
+    .filter(p => (p.found_count ?? 0) > 0) // ✅ seulement ceux qui ont trouvé au moins 1
+    .sort((a, b) => (b.found_count ?? 0) - (a.found_count ?? 0));
 
-    othersEl.innerHTML = "";
+  othersEl.innerHTML = "";
 
-    if (rows.length === 0) {
-      const empty = document.createElement("div");
-      empty.className = "other-player";
-      empty.textContent = "Personne d’autre en ligne pour l’instant.";
-      othersEl.appendChild(empty);
-      return;
+  // ✅ si personne n'a encore trouvé : on n'affiche rien (comme demandé)
+  if (rows.length === 0) return;
+
+  for (const p of rows) {
+    const card = document.createElement("div");
+    card.className = "other-card";
+
+    const c = PLAYER_COLOR.get(p.player_name);
+    if (c) card.style.setProperty("--player-color", c);
+
+    const top = document.createElement("div");
+    top.className = "other-top";
+
+    const dot = document.createElement("div");
+    dot.className = "other-dot";
+
+    const name = document.createElement("div");
+    name.className = "other-name";
+    name.textContent = p.player_name;
+
+    top.appendChild(dot);
+    top.appendChild(name);
+
+    const score = document.createElement("div");
+    score.className = "other-score";
+    score.textContent = `${p.found_count ?? 0}/${quiz.items.length}`;
+
+    card.appendChild(top);
+    card.appendChild(score);
+
+    if (p.finished_at) {
+      const fini = document.createElement("div");
+      fini.className = "other-fini";
+      fini.textContent = "Fini";
+      card.appendChild(fini);
     }
 
-    for (const p of rows) {
-      const div = document.createElement("div");
-      div.className = "other-player";
-
-      const left = document.createElement("div");
-      left.className = "other-left";
-
-      const dot = document.createElement("div");
-      dot.className = "other-dot";
-
-      const name = document.createElement("div");
-      name.className = "other-name";
-      name.textContent = p.player_name;
-
-      left.appendChild(dot);
-      left.appendChild(name);
-
-      const right = document.createElement("div");
-      right.className = "other-right";
-
-      const score = document.createElement("div");
-      score.textContent = `${p.found_count ?? 0}/${quiz.items.length}`;
-      right.appendChild(score);
-
-      if (p.finished_at) {
-        const fini = document.createElement("div");
-        fini.className = "badge-fini";
-        fini.textContent = "Fini";
-        right.appendChild(fini);
-      }
-
-      div.appendChild(left);
-      div.appendChild(right);
-      othersEl.appendChild(div);
-    }
+    othersEl.appendChild(card);
   }
+}
+
+
 
   // ====== Events ======
   if (input) {
