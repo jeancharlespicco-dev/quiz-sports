@@ -186,6 +186,4 @@ if (saved && exists) {
 } else {
   showScreen("player");
 }
- else {
-  showScreen("player");
-}
+
