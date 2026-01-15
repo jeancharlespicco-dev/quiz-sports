@@ -6,6 +6,28 @@ const PLAYERS = [
   { name: "Nico", color: "#73AFB9" }  // teal
 ];
 
+// ====== Supabase (à remplir) ======
+const SUPABASE_URL = "https://nkhrrigusnkufpfpotoz.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5raHJyaWd1c25rdWZwZnBvdG96Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0ODE3NzIsImV4cCI6MjA4NDA1Nzc3Mn0.2ujvv_IQMgvTeVsmwUtHZTie_q-XST1ULfSd4ZGgHRA";
+
+// Anti-crash : si la lib n'est pas chargée, on désactive le multi mais l'app reste jouable
+let supabase = null;
+try {
+  if (
+    window.supabase &&
+    typeof window.supabase.createClient === "function" &&
+    SUPABASE_URL.includes("supabase.co") &&
+    SUPABASE_ANON_KEY.length > 20
+  ) {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } else {
+    console.warn("[Supabase] non initialisé (script manquant ou clés invalides) — mode solo.");
+  }
+} catch (e) {
+  console.warn("[Supabase] init a échoué — mode solo.", e);
+  supabase = null;
+}
+
 // ====== DOM ======
 const screenPlayer = document.getElementById("screen-player");
 const screenGame = document.getElementById("screen-game");
@@ -20,26 +42,9 @@ const promptEl = document.getElementById("quiz-prompt");
 const progressEl = document.getElementById("progress");
 const listEl = document.getElementById("answers-list");
 
-// ====== Supabase (à remplir) ======
-const SUPABASE_URL = "https://nkhrrigusnkufpfpotoz.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5raHJyaWd1c25rdWZwZnBvdG96Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0ODE3NzIsImV4cCI6MjA4NDA1Nzc3Mn0.2ujvv_IQMgvTeVsmwUtHZTie_q-XST1ULfSd4ZGgHRA";
-
-// Anti-crash : si la lib n'est pas chargée, on désactive le multi mais l'app reste jouable
-let SUPABASE = null;
-try {
-  if (window.supabase && SUPABASE_URL.includes("supabase.co") && SUPABASE_ANON_KEY.length > 20) {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  } else {
-    console.warn("[Supabase] non initialisé (script manquant ou clés non renseignées) — mode solo.");
-  }
-} catch (e) {
-  console.warn("[Supabase] init a échoué — mode solo.", e);
-  supabase = null;
-}
-
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
 const othersEl = document.getElementById("others");
+
+// ====== Multiplayer UI state ======
 const othersState = {}; // player_name -> row
 let realtimeChannel = null;
 
@@ -58,8 +63,8 @@ function normalize(str) {
     .trim();
 }
 
+// (MVP) date locale du navigateur (sert encore pour trouver le fichier quiz si tu utilises la date)
 function getTodayId() {
-  // Simple MVP: date locale du navigateur
   const d = new Date();
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -67,13 +72,26 @@ function getTodayId() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+// Param URL optionnel ?quiz=mon-id
+function getQuizParam() {
+  const p = new URLSearchParams(window.location.search);
+  return p.get("quiz");
+}
+
 function storageKey(quizId, playerName) {
   return `dq_progress:${quizId}:${playerName}`;
 }
 
+// IMPORTANT: identifiant indépendant de la date
+// On utilise quiz.id (du JSON). Si absent, fallback sur param ?quiz=, sinon date (MVP).
+function getQuizId() {
+  return quiz?.id || getQuizParam() || getTodayId();
+}
+
+// ====== Local progress ======
 function saveProgress() {
   if (!quiz || !currentPlayer) return;
-  const key = storageKey(quiz.id || getTodayId(), currentPlayer);
+  const key = storageKey(getQuizId(), currentPlayer);
   const payload = {
     foundAnswers: Array.from(found),
     savedAt: Date.now()
@@ -81,35 +99,218 @@ function saveProgress() {
   localStorage.setItem(key, JSON.stringify(payload));
 }
 
-function getQuizId() {
-  // IMPORTANT: identifiant indépendant de la date
-  // On utilise l'id du JSON
-  return quiz?.id;
+function loadProgress() {
+  if (!quiz || !currentPlayer) return;
+  const key = storageKey(getQuizId(), currentPlayer);
+  const raw = localStorage.getItem(key);
+
+  if (!raw) {
+    found = new Set();
+    return;
+  }
+
+  try {
+    const data = JSON.parse(raw);
+    const valid = new Set();
+
+    const answersSet = new Set((quiz.items || []).map(i => i.answer));
+    for (const a of (data.foundAnswers || [])) {
+      if (answersSet.has(a)) valid.add(a);
+    }
+    found = valid;
+  } catch {
+    found = new Set();
+  }
 }
 
-async function ensurePresenceRow() {
-  if (!quiz || !currentPlayer) return;
-  const quizId = getQuizId();
-  if (!quizId) return;
+// ====== Screens ======
+function showScreen(which) {
+  if (which === "player") {
+    screenPlayer.classList.remove("hidden");
+    screenGame.classList.add("hidden");
+  } else {
+    screenPlayer.classList.add("hidden");
+    screenGame.classList.remove("hidden");
+  }
+}
 
+// ====== Player selection ======
+function renderPlayers() {
+  playerGrid.innerHTML = "";
+
+  PLAYERS.forEach(p => {
+    const name = typeof p === "string" ? p : p.name;
+    const color = typeof p === "string" ? "" : (p.color || "");
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "player-btn";
+    if (color) btn.style.setProperty("--player-color", color);
+
+    btn.innerHTML = `
+      <span>${name}</span>
+      <span class="badge"><span class="dot"></span> Choisir</span>
+    `;
+
+    btn.addEventListener("click", () => selectPlayer(name, color));
+    playerGrid.appendChild(btn);
+  });
+}
+
+function selectPlayer(name, color) {
+  currentPlayer = name;
+  localStorage.setItem("dq_player", name);
+  localStorage.setItem("dq_player_color", color || "");
+
+  // Couleur joueur dans la pill
+  screenGame.style.setProperty("--player-color", color || "");
+  playerPill.textContent = `Vous : ${name}`;
+
+  showScreen("game");
+
+  // Charger progression locale
+  loadProgress();
+  updateUI();
+  renderList();
+
+  // Multiplayer (si dispo)
+  ensurePresenceRow();
+  subscribePresence();
+
+  input.focus();
+}
+
+function clearPlayer() {
+  currentPlayer = null;
+  localStorage.removeItem("dq_player");
+
+  // stop realtime
+  if (supabase && realtimeChannel) {
+    supabase.removeChannel(realtimeChannel);
+    realtimeChannel = null;
+  }
+
+  showScreen("player");
+}
+
+// ====== Quiz rendering ======
+function updateUI() {
+  if (!quiz) return;
+  progressEl.textContent = `${found.size} / ${quiz.items.length}`;
+}
+
+function renderList() {
+  if (!quiz) return;
+  listEl.innerHTML = "";
+  quiz.items.forEach(item => {
+    const li = document.createElement("li");
+    if (found.has(item.answer)) {
+      li.textContent = item.answer;
+      li.classList.add("found");
+    } else {
+      li.textContent = "—";
+    }
+    listEl.appendChild(li);
+  });
+}
+
+function checkAnswer(value) {
+  if (!quiz) return;
+
+  const normalized = normalize(value);
+  if (!normalized) return;
+
+  for (const item of quiz.items) {
+    if (found.has(item.answer)) continue;
+
+    const allAnswers = [item.answer, ...(item.aliases || [])];
+    const match = allAnswers.some(a => normalize(a) === normalized);
+
+    if (match) {
+      found.add(item.answer);
+
+      saveProgress();
+      ensurePresenceRow();
+
+      input.value = "";
+      updateUI();
+      renderList();
+
+      if (found.size === quiz.items.length) {
+        input.blur();
+      }
+      break;
+    }
+  }
+}
+
+// ====== Load quiz ======
+async function loadQuiz() {
+  // Pour l’instant, on garde le chargement par fichier (MVP)
+  // Tu pourras plus tard passer à un index.json ou Supabase.
+  const today = getTodayId();
+
+  const res = await fetch(`quizzes/${today}.json`);
+  if (!res.ok) {
+    titleEl.textContent = "Quiz introuvable";
+    promptEl.textContent = `Aucun fichier quizzes/${today}.json. Ajoute-le pour jouer aujourd’hui.`;
+    progressEl.textContent = "";
+    listEl.innerHTML = "";
+    if (othersEl) othersEl.innerHTML = "";
+    input.disabled = true;
+    return;
+  }
+
+  quiz = await res.json();
+
+  titleEl.textContent = quiz.title;
+  promptEl.textContent = quiz.prompt;
+
+  // Reset / restore progress
+  found = new Set();
+  if (currentPlayer) loadProgress();
+
+  input.disabled = false;
+  input.value = "";
+
+  updateUI();
+  renderList();
+
+  // Multiplayer: (re)subscribe si joueur déjà choisi
+  if (currentPlayer) {
+    ensurePresenceRow();
+    subscribePresence();
+  }
+}
+
+// ====== Multiplayer (Supabase) ======
+async function ensurePresenceRow() {
+  if (!supabase) return;
+  if (!quiz || !currentPlayer) return;
+
+  const quizId = getQuizId();
   const finished = found.size === quiz.items.length;
 
-  await supabase
-    .from("daily_presence")
-    .upsert({
-      quiz_id: quizId,
-      player_name: currentPlayer,
-      found_count: found.size,
-      finished_at: finished ? new Date().toISOString() : null,
-      updated_at: new Date().toISOString()
-      
-    });
+  try {
+    await supabase
+      .from("daily_presence")
+      .upsert({
+        quiz_id: quizId,
+        player_name: currentPlayer,
+        found_count: found.size,
+        finished_at: finished ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString()
+      });
+  } catch (e) {
+    console.warn("[Supabase] upsert presence failed", e);
+  }
 }
 
 function subscribePresence() {
+  if (!supabase) return;
   if (!quiz) return;
+
   const quizId = getQuizId();
-  if (!quizId) return;
 
   // reset affichage
   for (const k of Object.keys(othersState)) delete othersState[k];
@@ -138,7 +339,11 @@ function subscribePresence() {
     .from("daily_presence")
     .select("*")
     .eq("quiz_id", quizId)
-    .then(({ data }) => {
+    .then(({ data, error }) => {
+      if (error) {
+        console.warn("[Supabase] select presence failed", error);
+        return;
+      }
       if (!data) return;
       for (const row of data) {
         if (row.player_name === currentPlayer) continue;
@@ -186,7 +391,6 @@ function redrawOthers() {
 
     const score = document.createElement("div");
     score.textContent = `${p.found_count ?? 0}/${quiz.items.length}`;
-
     right.appendChild(score);
 
     if (p.finished_at) {
@@ -198,199 +402,24 @@ function redrawOthers() {
 
     div.appendChild(left);
     div.appendChild(right);
-
     othersEl.appendChild(div);
   }
 }
 
-function loadProgress() {
-  if (!quiz || !currentPlayer) return;
-  const key = storageKey(quiz.id || getTodayId(), currentPlayer);
-  const raw = localStorage.getItem(key);
-  if (!raw) {
-    found = new Set();
-    return;
-  }
-
-  try {
-    const data = JSON.parse(raw);
-    const valid = new Set();
-
-    // On ne garde que les réponses qui existent dans le quiz
-    const answersSet = new Set(quiz.items.map(i => i.answer));
-    for (const a of (data.foundAnswers || [])) {
-      if (answersSet.has(a)) valid.add(a);
-    }
-    found = valid;
-  } catch {
-    found = new Set();
-  }
-}
-
-function clearProgressFor(quizId, playerName) {
-  const key = storageKey(quizId, playerName);
-  localStorage.removeItem(key);
-}
-
-
-function showScreen(which) {
-  if (which === "player") {
-    screenPlayer.classList.remove("hidden");
-    screenGame.classList.add("hidden");
-  } else {
-    screenPlayer.classList.add("hidden");
-    screenGame.classList.remove("hidden");
-  }
-}
-
-// ====== Player selection ======
-function renderPlayers() {
-  playerGrid.innerHTML = "";
-
-  PLAYERS.forEach(p => {
-    // Compatible si PLAYERS = ["Jice", ...] OU [{name,color}, ...]
-    const name = typeof p === "string" ? p : p.name;
-    const color = typeof p === "string" ? "" : (p.color || "");
-
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "player-btn";
-
-    if (color) btn.style.setProperty("--player-color", color);
-
-    btn.innerHTML = `
-      <span>${name}</span>
-      <span class="badge"><span class="dot"></span> Choisir</span>
-    `;
-
-    btn.addEventListener("click", () => {
-      // Si ton selectPlayer prend (name,color), ça marche. Sinon il ignore color.
-      selectPlayer(name, color);
-    });
-
-    playerGrid.appendChild(btn);
-  });
-}
-
-
-function selectPlayer(name, color) {
-  currentPlayer = name;
-  localStorage.setItem("dq_player", name);
-  localStorage.setItem("dq_player_color", color || "");
-
-  // set couleur du joueur pour la pill
-  screenGame.style.setProperty("--player-color", color || "");
-  playerPill.textContent = `Vous : ${name}`;
-
-  showScreen("game");
-    // Charger progression locale pour ce joueur + quiz du jour
-  loadProgress();
-  updateUI();
-  renderList();
-  ensurePresenceRow();
-subscribePresence();
-
-  input.focus();
-}
-
-
-function clearPlayer() {
-  currentPlayer = null;
-  localStorage.removeItem("dq_player");
-  showScreen("player");
-  if (realtimeChannel) {
-  supabase.removeChannel(realtimeChannel);
-  realtimeChannel = null;
-}
-}
-
-// ====== Quiz rendering ======
-function updateUI() {
-  progressEl.textContent = `${found.size} / ${quiz.items.length}`;
-}
-
-function renderList() {
-  listEl.innerHTML = "";
-  quiz.items.forEach(item => {
-    const li = document.createElement("li");
-    if (found.has(item.answer)) {
-      li.textContent = item.answer;
-      li.classList.add("found");
-    } else {
-      li.textContent = "—";
-    }
-    listEl.appendChild(li);
-  });
-}
-
-function checkAnswer(value) {
-  const normalized = normalize(value);
-  if (!normalized) return;
-
-  for (const item of quiz.items) {
-    if (found.has(item.answer)) continue;
-
-    const allAnswers = [item.answer, ...(item.aliases || [])];
-    const match = allAnswers.some(a => normalize(a) === normalized);
-
-    if (match) {
-      found.add(item.answer);
-      saveProgress();
-ensurePresenceRow();
-
-      input.value = "";
-      updateUI();
-      renderList();
-
-      // Fin de partie (solo) : on pourra brancher plus tard
-      if (found.size === quiz.items.length) {
-        // petit feedback soft
-        input.blur();
-      }
-      break;
-    }
-  }
-}
-
-async function loadQuiz() {
-  const today = getTodayId();
-  const res = await fetch(`quizzes/${today}.json`);
-  if (!res.ok) {
-    // Message clair si le quiz du jour n'existe pas
-    titleEl.textContent = "Quiz introuvable";
-    promptEl.textContent = `Aucun fichier quizzes/${today}.json. Ajoute-le pour jouer aujourd’hui.`;
-    progressEl.textContent = "";
-    listEl.innerHTML = "";
-    input.disabled = true;
-    return;
-  }
-
-  quiz = await res.json();
-
-  titleEl.textContent = quiz.title;
-  promptEl.textContent = quiz.prompt;
-
-found = new Set();
-if (currentPlayer) {
-  loadProgress();
-}
-  input.disabled = false;
-  input.value = "";
-
-  updateUI();
-  renderList();
-}
-
 // ====== Events ======
-input.addEventListener("input", e => {
-  if (!quiz) return;
-  if (!currentPlayer) return;
-  checkAnswer(e.target.value);
-});
+if (input) {
+  input.addEventListener("input", e => {
+    if (!quiz) return;
+    if (!currentPlayer) return;
+    checkAnswer(e.target.value);
+  });
+}
 
-changePlayerBtn.addEventListener("click", () => {
-  clearPlayer();
-});
+if (changePlayerBtn) {
+  changePlayerBtn.addEventListener("click", () => {
+    clearPlayer();
+  });
+}
 
 // ====== Boot ======
 renderPlayers();
@@ -399,9 +428,9 @@ loadQuiz();
 const saved = localStorage.getItem("dq_player");
 const savedColor = localStorage.getItem("dq_player_color") || "";
 const exists = PLAYERS.some(p => p.name === saved);
+
 if (saved && exists) {
   selectPlayer(saved, savedColor);
 } else {
   showScreen("player");
 }
-
