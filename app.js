@@ -23,6 +23,8 @@ const ALLOWED_PLAYERS = new Set(PLAYERS.map(p => p.name));
   const playerGrid = document.getElementById("player-grid");
   const playerPill = document.getElementById("player-pill");
   const changePlayerBtn = document.getElementById("change-player-btn");
+  const resetBtn = document.getElementById("reset-btn");
+
 
   const input = document.getElementById("answer-input");
   const titleEl = document.getElementById("quiz-title");
@@ -271,6 +273,81 @@ const ALLOWED_PLAYERS = new Set(PLAYERS.map(p => p.name));
     }
   }
 
+async function resetQuizForEveryone() {
+  if (!quiz) return;
+
+  const quizId = getQuizId();
+
+  const ok = confirm("Remettre ce quiz à zéro pour tout le monde ?\n\nLes progressions seront effacées.");
+  if (!ok) return;
+
+  // 1) Supabase: reset presence
+  if (supabase) {
+    try {
+      await supabase.rpc("reset_quiz_presence", { qid: quizId });
+    } catch (e) {
+      console.warn("[Reset] Supabase RPC failed", e);
+      alert("Reset impossible (Supabase). Regarde la console.");
+      return;
+    }
+  }
+
+  // 2) Local: efface la progression pour tous les joueurs connus (sur cet ordinateur)
+  for (const p of PLAYERS) {
+    localStorage.removeItem(storageKey(quizId, p.name));
+  }
+
+  // 3) Reset état local
+  found = new Set();
+  for (const k of Object.keys(othersState)) delete othersState[k];
+
+  // 4) UI
+  updateUI();
+  renderList();
+  redrawOthers();
+
+  // 5) Recréer ta présence à 0 (sinon tu "disparais" côté base)
+  ensurePresenceRow();
+
+  alert("Reset effectué ✔️");
+}
+
+
+async function resetQuiz() {
+  if (!quiz) return;
+  const quizId = getQuizId();
+
+  // 1. Supabase : reset presence
+  if (supabase) {
+    try {
+      await supabase.rpc("reset_quiz_presence", { qid: quizId });
+    } catch (e) {
+      console.warn("[Reset] Supabase failed", e);
+    }
+  }
+
+  // 2. LocalStorage : reset progress pour TOUS les joueurs connus
+  PLAYERS.forEach(p => {
+    const key = storageKey(quizId, p.name);
+    localStorage.removeItem(key);
+  });
+
+  // 3. Reset état local
+  found = new Set();
+  for (const k of Object.keys(othersState)) delete othersState[k];
+
+  // 4. UI
+  updateUI();
+  renderList();
+  redrawOthers();
+
+  // 5. Recrée la présence du joueur courant
+  ensurePresenceRow();
+
+  alert("Quiz remis à zéro ✔️");
+}
+
+
   // ====== Multiplayer (Supabase) ======
   async function ensurePresenceRow() {
     if (!supabase) return;
@@ -403,6 +480,10 @@ function redrawOthers() {
   if (changePlayerBtn) {
     changePlayerBtn.addEventListener("click", () => clearPlayer());
   }
+
+  if (resetBtn) {
+  resetBtn.addEventListener("click", resetQuizForEveryone);
+}
 
   // ====== Boot ======
   renderPlayers();
