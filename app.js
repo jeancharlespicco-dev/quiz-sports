@@ -20,6 +20,16 @@ const promptEl = document.getElementById("quiz-prompt");
 const progressEl = document.getElementById("progress");
 const listEl = document.getElementById("answers-list");
 
+// ====== Supabase (à remplir) ======
+const SUPABASE_URL = "https://nkhrrigusnkufpfpotoz.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5raHJyaWd1c25rdWZwZnBvdG96Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0ODE3NzIsImV4cCI6MjA4NDA1Nzc3Mn0.2ujvv_IQMgvTeVsmwUtHZTie_q-XST1ULfSd4ZGgHRA";
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const othersEl = document.getElementById("others");
+const othersState = {}; // player_name -> row
+let realtimeChannel = null;
+
 // ====== State ======
 let quiz = null;
 let found = new Set();
@@ -56,6 +66,127 @@ function saveProgress() {
     savedAt: Date.now()
   };
   localStorage.setItem(key, JSON.stringify(payload));
+}
+
+function getQuizId() {
+  // IMPORTANT: identifiant indépendant de la date
+  // On utilise l'id du JSON
+  return quiz?.id;
+}
+
+async function ensurePresenceRow() {
+  if (!quiz || !currentPlayer) return;
+  const quizId = getQuizId();
+  if (!quizId) return;
+
+  const finished = found.size === quiz.items.length;
+
+  await supabase
+    .from("daily_presence")
+    .upsert({
+      quiz_id: quizId,
+      player_name: currentPlayer,
+      found_count: found.size,
+      finished_at: finished ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString()
+    });
+}
+
+function subscribePresence() {
+  if (!quiz) return;
+  const quizId = getQuizId();
+  if (!quizId) return;
+
+  // reset affichage
+  for (const k of Object.keys(othersState)) delete othersState[k];
+  redrawOthers();
+
+  // kill old channel
+  if (realtimeChannel) supabase.removeChannel(realtimeChannel);
+
+  realtimeChannel = supabase
+    .channel(`presence:${quizId}`)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "daily_presence", filter: `quiz_id=eq.${quizId}` },
+      (payload) => {
+        const row = payload.new;
+        if (!row) return;
+        if (row.player_name === currentPlayer) return;
+        othersState[row.player_name] = row;
+        redrawOthers();
+      }
+    )
+    .subscribe();
+
+  // charge l'état actuel (les joueurs déjà présents)
+  supabase
+    .from("daily_presence")
+    .select("*")
+    .eq("quiz_id", quizId)
+    .then(({ data }) => {
+      if (!data) return;
+      for (const row of data) {
+        if (row.player_name === currentPlayer) continue;
+        othersState[row.player_name] = row;
+      }
+      redrawOthers();
+    });
+}
+
+function redrawOthers() {
+  if (!othersEl || !quiz) return;
+
+  const rows = Object.values(othersState)
+    .sort((a, b) => (b.found_count ?? 0) - (a.found_count ?? 0));
+
+  othersEl.innerHTML = "";
+
+  if (rows.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "other-player";
+    empty.textContent = "Personne d’autre en ligne pour l’instant.";
+    othersEl.appendChild(empty);
+    return;
+  }
+
+  for (const p of rows) {
+    const div = document.createElement("div");
+    div.className = "other-player";
+
+    const left = document.createElement("div");
+    left.className = "other-left";
+
+    const dot = document.createElement("div");
+    dot.className = "other-dot";
+
+    const name = document.createElement("div");
+    name.className = "other-name";
+    name.textContent = p.player_name;
+
+    left.appendChild(dot);
+    left.appendChild(name);
+
+    const right = document.createElement("div");
+    right.className = "other-right";
+
+    const score = document.createElement("div");
+    score.textContent = `${p.found_count ?? 0}/${quiz.items.length}`;
+
+    right.appendChild(score);
+
+    if (p.finished_at) {
+      const fini = document.createElement("div");
+      fini.className = "badge-fini";
+      fini.textContent = "Fini";
+      right.appendChild(fini);
+    }
+
+    div.appendChild(left);
+    div.appendChild(right);
+
+    othersEl.appendChild(div);
+  }
 }
 
 function loadProgress() {
@@ -130,6 +261,9 @@ function selectPlayer(name, color) {
   loadProgress();
   updateUI();
   renderList();
+  ensurePresenceRow();
+subscribePresence();
+
   input.focus();
 }
 
@@ -138,6 +272,10 @@ function clearPlayer() {
   currentPlayer = null;
   localStorage.removeItem("dq_player");
   showScreen("player");
+  if (realtimeChannel) {
+  supabase.removeChannel(realtimeChannel);
+  realtimeChannel = null;
+}
 }
 
 // ====== Quiz rendering ======
@@ -172,6 +310,7 @@ function checkAnswer(value) {
     if (match) {
       found.add(item.answer);
       saveProgress();
+ensurePresenceRow();
 
       input.value = "";
       updateUI();

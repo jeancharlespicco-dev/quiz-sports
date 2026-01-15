@@ -310,3 +310,69 @@ body{
 @media (prefers-reduced-motion: reduce){
   *{ transition: none !important; }
 }
+
+.section-title{
+  margin: 14px 0 8px;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: rgba(15,23,42,0.55);
+  font-weight: 650;
+}
+
+.others{
+  display: grid;
+  gap: 8px;
+}
+
+.other-player{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.62);
+}
+
+.other-left{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.other-dot{
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(67,102,187,0.9);
+  box-shadow: 0 0 0 3px rgba(15,23,42,0.08);
+  flex: 0 0 auto;
+}
+
+.other-name{
+  font-weight: 650;
+  color: rgba(15,23,42,0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.other-right{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  font-weight: 650;
+  color: rgba(15,23,42,0.72);
+}
+
+.badge-fini{
+  font-size: 12px;
+  font-weight: 750;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(34,197,94,0.25);
+  background: rgba(34,197,94,0.10);
+  color: rgba(15,23,42,0.82);
+}
