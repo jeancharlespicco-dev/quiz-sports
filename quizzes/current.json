@@ -1,0 +1,15 @@
+{
+  "id": "current",
+  "title": "Clubs de Ligue 1",
+  "prompt": "Tape les clubs actuellement en Ligue 1",
+  "items": [
+    { "answer": "Paris Saint-Germain", "aliases": ["PSG", "Paris SG"] },
+    { "answer": "Olympique de Marseille", "aliases": ["OM", "Marseille"] },
+    { "answer": "Olympique Lyonnais", "aliases": ["OL", "Lyon"] },
+    { "answer": "AS Monaco", "aliases": ["Monaco"] },
+    { "answer": "LOSC Lille", "aliases": ["Lille", "LOSC"] },
+    { "answer": "AS Saint-Etienne", "aliases": ["Sainté", "ASSE"] },
+    { "answer": "RC Lens", "aliases": ["Lens"] },
+    { "answer": "OGC Nice", "aliases": ["Nice"] }
+  ]
+}

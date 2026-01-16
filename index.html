@@ -4,27 +4,40 @@
   <meta charset="UTF-8" />
   <title>Daily Quiz</title>
   <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="assets/logos/icon-color.svg" type="image/svg+xml">
+
 </head>
 <body>
 
   <!-- Écran sélection joueur -->
   <div class="container" id="screen-player">
-    <h1 class="title">Qui joue aujourd’hui ?</h1>
-    <p class="subtitle">Choisis ton nom pour rejoindre le quiz du jour.</p>
+   <img
+  src="assets/logos/logo-homepage.svg"
+  alt="Quiz Sports"
+  class="logo-homepage"
+/> <h1 class="title">Clique sur ton nom pour rejoindre le quiz</h1>
 
     <div id="player-grid" class="player-grid"></div>
 
     <div class="hint">
-      Astuce : ton choix est mémorisé sur cet ordinateur.
+      Ton choix est mémorisé sur ce navigateur
     </div>
   </div>
 
   <!-- Écran jeu -->
   <div class="container hidden" id="screen-game">
     <div class="topline">
+        <img
+    src="assets/logos/logo-black.svg"
+    alt="Quiz Sports"
+    class="logo-topbar"
+  />
       <div class="player-pill" id="player-pill"></div>
-      <button class="ghost-btn" id="change-player-btn" type="button">Changer</button>
+      <button class="ghost-btn" id="change-player-btn" type="button">Changer de joueur</button>
       <button class="ghost-btn" id="reset-btn" type="button">Reset</button>
+      <button class="ghost-btn" id="stats-btn" type="button">Stats</button>
+      <div id="winner-banner" class="winner-banner hidden"></div>
+
     </div>
 
     <h1 id="quiz-title">Daily Quiz</h1>
@@ -36,7 +49,7 @@
   <input
     id="answer-input"
     type="text"
-    placeholder="Commence à taper..."
+    placeholder="Réponse..."
     autocomplete="off"
   />
   <div id="my-score" class="my-score">0 / 0</div>
@@ -45,6 +58,27 @@
 
     <ul id="answers-list"></ul>
   </div>
+
+  <div class="container hidden" id="screen-stats">
+  <div class="topline">
+    <h1 class="title" style="margin:0;">Stats</h1>
+    <div class="top-actions">
+      <button class="ghost-btn" id="back-to-game-btn" type="button">Retour</button>
+    </div>
+  </div>
+
+  <div class="stats-section">
+    <h2 class="section-h2">Classement du quiz</h2>
+    <div id="quiz-ranking" class="ranking-grid"></div>
+  </div>
+
+  <div class="stats-section">
+    <h2 class="section-h2">Classement global</h2>
+    <div id="global-ranking" class="ranking-grid"></div>
+  </div>
+</div>
+
+
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script src="app.js"></script>
 </body>

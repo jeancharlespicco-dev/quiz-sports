@@ -75,12 +75,22 @@ body{
 }
 
 /* ===== Titles / text ===== */
-#quiz-title,
-.title{
-  margin: 0 0 6px;
-  font-size: 30px;
+/* Titre sur la homepage */
+#screen-player .title {
+  margin: 16px 0;
+  font-size: 20px;
   letter-spacing: -0.02em;
-  font-weight: 750; /* plus fin que 800 */
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Titre dans le jeu */
+#screen-game #quiz-title {
+  margin: 16px 0;
+  font-size: 36px; /* ou 32–40 selon ton goût */
+  letter-spacing: -0.02em;
+  font-weight: 700;
+  text-align:center;
 }
 
 #quiz-prompt,
@@ -241,31 +251,37 @@ body{
   box-shadow: 0 0 0 3px rgba(15,23,42,0.08);
 }
 
+.player-pill .dot,
+.player-pill .pill-dot{
+  background: var(--player-color, #94A3B8);
+}
+
+
 .hint{
   margin-top: 14px;
   padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid var(--border);
   background: rgba(255,255,255,0.55);
   color: rgba(15,23,42,0.62);
   font-size: 13px;
   font-weight: 450;
+  text-align: center;
 }
 
 /* ===== Game top line ===== */
 .topline{
-  display:flex;
-  align-items:center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-start; /* important */
 }
 
 .top-actions{
-  margin-left: auto;      /* ⬅️ pousse tout à droite */
+  margin-left: auto;          /* pousse à droite */
   display: flex;
   gap: 10px;
+  align-items: center;
 }
+
 
 .player-pill{
   display:inline-flex;
@@ -305,8 +321,9 @@ body{
 @media (min-width: 760px){
   body{ padding: 46px 16px; }
   .container{ padding: 26px 26px 20px; }
-  #quiz-title, .title{ font-size: 34px; }
+  #quiz-title, .title{ font-size: 20px; }
   #answers-list{ grid-template-columns: 1fr 1fr; }
+  
 }
 
 @media (min-width: 640px){
@@ -468,3 +485,133 @@ body{
   color: rgba(15,23,42,0.85);
   white-space: nowrap;
 }
+
+.winner-banner{
+  margin: 12px 0 14px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(238,168,37,0.25);
+  background: rgba(238,168,37,0.12);
+  color: rgba(15,23,42,0.88);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.winner-banner .dot{
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--winner-color, rgba(238,168,37,0.9));
+  box-shadow: 0 0 0 3px rgba(15,23,42,0.08);
+}
+
+.winner-banner.hidden{
+  display: none;
+}
+
+.stats-section{
+  margin-top: 18px;
+}
+
+.section-h2{
+  font-size: 16px;
+  font-weight: 750;
+  margin: 0 0 10px;
+  color: rgba(15,23,42,0.85);
+}
+
+.ranking-grid{
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+@media (min-width: 760px){
+  .ranking-grid{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.rank-card{
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.62);
+  border-radius: 16px;
+  padding: 12px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.rank-left{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.rank-dot{
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--player-color, rgba(67,102,187,0.9));
+  box-shadow: 0 0 0 3px rgba(15,23,42,0.08);
+}
+
+.rank-name{
+  font-weight: 750;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rank-meta{
+  text-align: right;
+  font-weight: 750;
+  color: rgba(15,23,42,0.75);
+  white-space: nowrap;
+}
+
+.logo-homepage{
+  display: block;
+  max-width: 200px;
+  margin: 0 auto 14px;
+}
+
+.logo-topbar{
+  height: 36px;
+  opacity: 0.85;
+  margin-right: 10px;
+}
+
+@keyframes pulseGlow {
+  0%   { box-shadow: 0 0 0 0 rgba(0,0,0,0); transform: translateY(0); }
+  30%  { box-shadow: 0 0 0 6px color-mix(in srgb, var(--player-color, #22C55E) 18%, transparent); }
+  60%  { box-shadow: 0 0 0 10px color-mix(in srgb, var(--player-color, #22C55E) 10%, transparent); transform: translateY(-1px); }
+  100% { box-shadow: 0 0 0 0 rgba(0,0,0,0); transform: translateY(0); }
+}
+
+.other-card.is-updated{
+  animation: pulseGlow 650ms ease-out;
+}
+
+.other-card.is-updated .other-dot{
+  transform: scale(1.08);
+  transition: transform 200ms ease;
+}
+
+@keyframes pulseGlowRGB {
+  0%   { box-shadow: 0 0 0 0 rgba(var(--player-rgb, 34 197 94), 0); transform: translateY(0); }
+  30%  { box-shadow: 0 0 0 6px rgba(var(--player-rgb, 34 197 94), 0.18); }
+  60%  { box-shadow: 0 0 0 10px rgba(var(--player-rgb, 34 197 94), 0.10); transform: translateY(-1px); }
+  100% { box-shadow: 0 0 0 0 rgba(var(--player-rgb, 34 197 94), 0); transform: translateY(0); }
+}
+
+.other-card.is-updated{
+  animation: pulseGlowRGB 650ms ease-out;
+}
+
+
+

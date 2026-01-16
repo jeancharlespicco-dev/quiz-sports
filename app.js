@@ -3,10 +3,14 @@
 
   // ====== Config joueurs (tu modifies ici) ======
   const PLAYERS = [
-    { name: "JCP", color: "#4366BB" }, // bleu
-    { name: "TSP", color: "#22C55E" },  // vert
+    { name: "TSP", color: "#4366BB" }, // bleu
+    { name: "JCP", color: "#22C55E" },  // vert
     { name: "XL", color: "#EEA825" }, // ambre
-    { name: "MC", color: "#73AFB9" }  // teal
+    { name: "MC", color: "#73AFB9" },  // teal
+    { name: "NG", color: "#B68489" },  // rouge
+    { name: "LBL", color: "#15803D" },  // vert foncé
+    { name: "HB", color: "#2C535A" },  // bleu marine
+    { name: "MM", color: "#a46f0d" },  // or foncé
   ];
 const PLAYER_COLOR = new Map(PLAYERS.map(p => [p.name, p.color]));
 const ALLOWED_PLAYERS = new Set(PLAYERS.map(p => p.name));
@@ -24,6 +28,8 @@ const ALLOWED_PLAYERS = new Set(PLAYERS.map(p => p.name));
   const playerPill = document.getElementById("player-pill");
   const changePlayerBtn = document.getElementById("change-player-btn");
   const resetBtn = document.getElementById("reset-btn");
+  const winnerBanner = document.getElementById("winner-banner");
+
 
 
   const input = document.getElementById("answer-input");
@@ -33,6 +39,14 @@ const ALLOWED_PLAYERS = new Set(PLAYERS.map(p => p.name));
   const listEl = document.getElementById("answers-list");
 
   const othersEl = document.getElementById("others");
+
+  const screenStats = document.getElementById("screen-stats");
+const statsBtn = document.getElementById("stats-btn");
+const backToGameBtn = document.getElementById("back-to-game-btn");
+
+const quizRankingEl = document.getElementById("quiz-ranking");
+const globalRankingEl = document.getElementById("global-ranking");
+
 
   // ====== Supabase client (anti-crash) ======
   let supabase = null;
@@ -56,10 +70,65 @@ const ALLOWED_PLAYERS = new Set(PLAYERS.map(p => p.name));
   const othersState = {}; // player_name -> row
   let realtimeChannel = null;
 
+const lastFoundCount = {}; // player_name -> number
+
+
   // ====== State ======
   let quiz = null;
   let found = new Set();
   let currentPlayer = null;
+
+let winner = null; // { player_name, finished_at }
+
+function showWinnerBanner(playerName) {
+  if (!winnerBanner) return;
+
+  const color = PLAYER_COLOR.get(playerName) || "rgba(238,168,37,0.9)";
+  winnerBanner.style.setProperty("--winner-color", color);
+
+  winnerBanner.innerHTML = `
+    <span class="dot"></span>
+    <span>🏆 <strong>${playerName}</strong> a gagné ce quiz !</span>
+  `;
+  winnerBanner.classList.remove("hidden");
+}
+
+function hideWinnerBanner() {
+  if (!winnerBanner) return;
+  winnerBanner.classList.add("hidden");
+  winnerBanner.innerHTML = "";
+}
+
+async function fetchWinner() {
+  if (!supabase || !quiz) return;
+
+  const quizId = getQuizId();
+
+  const { data, error } = await supabase
+    .from("daily_presence")
+    .select("player_name, finished_at")
+    .eq("quiz_id", quizId)
+    .not("finished_at", "is", null)
+    .order("finished_at", { ascending: true })
+    .limit(1);
+
+  if (error) {
+    console.warn("[Winner] fetch failed", error);
+    return;
+  }
+
+  const row = data?.[0];
+  if (!row) {
+    winner = null;
+    hideWinnerBanner();
+    return;
+  }
+
+  winner = row;
+  showWinnerBanner(row.player_name);
+}
+
+
 
   // ====== Utils ======
   function normalize(str) {
@@ -70,6 +139,16 @@ const ALLOWED_PLAYERS = new Set(PLAYERS.map(p => p.name));
       .replace(/[^a-z0-9 ]/g, "")
       .trim();
   }
+
+function hexToRgbTriplet(hex) {
+  const h = (hex || "").replace("#", "").trim();
+  if (h.length !== 6) return null;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  if ([r,g,b].some(n => Number.isNaN(n))) return null;
+  return `${r} ${g} ${b}`; // format "67 102 187"
+}
 
   function getTodayId() {
     const d = new Date();
@@ -123,15 +202,24 @@ const ALLOWED_PLAYERS = new Set(PLAYERS.map(p => p.name));
   }
 
   // ====== Screens ======
-  function showScreen(which) {
-    if (which === "player") {
-      screenPlayer?.classList.remove("hidden");
-      screenGame?.classList.add("hidden");
-    } else {
-      screenPlayer?.classList.add("hidden");
-      screenGame?.classList.remove("hidden");
-    }
-  }
+function showScreen(which) {
+  if (screenPlayer) screenPlayer.classList.add("hidden");
+  if (screenGame) screenGame.classList.add("hidden");
+  if (screenStats) screenStats.classList.add("hidden");
+
+  if (which === "player") screenPlayer?.classList.remove("hidden");
+  if (which === "game") screenGame?.classList.remove("hidden");
+  if (which === "stats") screenStats?.classList.remove("hidden");
+}
+
+function pointsForRank(rank) {
+  // 1->10, 2->7, 3->5, 4->3, 5->2, 6+->1
+  const table = [10, 7, 5, 3, 2];
+  if (rank <= 0) return 0;
+  if (rank <= table.length) return table[rank - 1];
+  return 1;
+}
+
 
   // ====== Player selection ======
   function renderPlayers() {
@@ -149,7 +237,7 @@ const ALLOWED_PLAYERS = new Set(PLAYERS.map(p => p.name));
 
       btn.innerHTML = `
         <span>${name}</span>
-        <span class="badge"><span class="dot"></span> Choisir</span>
+        <span class="dot"></span>
       `;
 
       btn.addEventListener("click", () => selectPlayer(name, color));
@@ -163,7 +251,7 @@ const ALLOWED_PLAYERS = new Set(PLAYERS.map(p => p.name));
     localStorage.setItem("dq_player_color", color || "");
 
     screenGame?.style.setProperty("--player-color", color || "");
-    if (playerPill) playerPill.textContent = `Vous : ${name}`;
+    if (playerPill) playerPill.textContent = `${name}`;
 
     showScreen("game");
 
@@ -246,24 +334,29 @@ function updateUI() {
   }
 
   // ====== Load quiz ======
-  async function loadQuiz() {
-    const today = getTodayId();
-    const res = await fetch(`quizzes/${today}.json`);
+async function loadQuiz() {
+  try {
+    const res = await fetch("quizzes/current.json", { cache: "no-store" });
 
     if (!res.ok) {
-      if (titleEl) titleEl.textContent = "Quiz introuvable";
-      if (promptEl) promptEl.textContent = `Aucun fichier quizzes/${today}.json. Ajoute-le pour jouer aujourd’hui.`;
-      if (progressEl) progressEl.textContent = "";
-      if (listEl) listEl.innerHTML = "";
-      if (othersEl) othersEl.innerHTML = "";
-      if (input) input.disabled = true;
-      return;
+      throw new Error("current.json introuvable");
     }
 
-    quiz = await res.json();
+    const data = await res.json();
 
-    if (titleEl) titleEl.textContent = quiz.title;
-    if (promptEl) promptEl.textContent = quiz.prompt;
+    // Garde-fou structure
+    if (!data.items || !Array.isArray(data.items)) {
+      throw new Error("current.json invalide (clé items manquante)");
+    }
+
+    quiz = data;
+
+    // UI
+    titleEl.textContent = quiz.title || "Quiz";
+    promptEl.textContent = quiz.prompt || "";
+winner = null;
+hideWinnerBanner();
+fetchWinner();
 
     found = new Set();
     if (currentPlayer) loadProgress();
@@ -280,11 +373,22 @@ function updateUI() {
       ensurePresenceRow();
       subscribePresence();
     }
+
+  } catch (e) {
+    console.error("[Quiz] Load failed:", e);
+
+    titleEl.textContent = "Quiz introuvable";
+    promptEl.textContent = "Impossible de charger quizzes/current.json.";
+    if (input) input.disabled = true;
   }
+}
+
+
+
+
 
 async function resetQuizForEveryone() {
   if (!quiz) return;
-
   const quizId = getQuizId();
 
   const ok = confirm("Remettre ce quiz à zéro pour tout le monde ?\n\nLes progressions seront effacées.");
@@ -293,7 +397,7 @@ async function resetQuizForEveryone() {
   // 1) Supabase: reset presence
   if (supabase) {
     try {
-      await supabase.rpc("reset_quiz_presence", { qid: quizId });
+      await supabase.rpc("reset_quiz_all", { qid: quizId });
     } catch (e) {
       console.warn("[Reset] Supabase RPC failed", e);
       alert("Reset impossible (Supabase). Regarde la console.");
@@ -308,18 +412,23 @@ async function resetQuizForEveryone() {
 
   // 3) Reset état local
   found = new Set();
+
   for (const k of Object.keys(othersState)) delete othersState[k];
+
+  winner = null;
+  hideWinnerBanner();
 
   // 4) UI
   updateUI();
   renderList();
   redrawOthers();
 
-  // 5) Recréer ta présence à 0 (sinon tu "disparais" côté base)
+  // 5) Recrée ta présence à 0 (sinon tu "disparais" côté base)
   ensurePresenceRow();
 
   alert("Reset effectué ✔️");
 }
+
 
 
 async function resetQuiz() {
@@ -380,51 +489,210 @@ async function resetQuiz() {
     }
   }
 
-  function subscribePresence() {
-    if (!supabase) return;
-    if (!quiz) return;
+  async function updateQuizResultsFromPresence() {
+  if (!supabase || !quiz) return;
+  const quizId = getQuizId();
 
-    const quizId = getQuizId();
+  const { data, error } = await supabase
+    .from("daily_presence")
+    .select("player_name, finished_at")
+    .eq("quiz_id", quizId)
+    .not("finished_at", "is", null)
+    .order("finished_at", { ascending: true });
 
-    for (const k of Object.keys(othersState)) delete othersState[k];
-    redrawOthers();
-
-    if (realtimeChannel) supabase.removeChannel(realtimeChannel);
-
-    realtimeChannel = supabase
-      .channel(`presence:${quizId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "daily_presence", filter: `quiz_id=eq.${quizId}` },
-        (payload) => {
-          const row = payload.new;
-          if (!row) return;
-          if (row.player_name === currentPlayer) return;
-          othersState[row.player_name] = row;
-          redrawOthers();
-        }
-      )
-      .subscribe();
-
-    supabase
-      .from("daily_presence")
-      .select("*")
-      .eq("quiz_id", quizId)
-      .then(({ data, error }) => {
-        if (error) {
-          console.warn("[Supabase] select presence failed", error);
-          return;
-        }
-        if (!data) return;
-        for (const row of data) {
-          if (row.player_name === currentPlayer) continue;
-          othersState[row.player_name] = row;
-        }
-        redrawOthers();
-      });
+  if (error) {
+    console.warn("[Results] fetch presence finished failed", error);
+    return;
   }
 
-function redrawOthers() {
+  const finished = data || [];
+  if (finished.length === 0) return;
+
+  // upsert rank/points
+  const rows = finished.map((r, idx) => {
+    const rank = idx + 1;
+    return {
+      quiz_id: quizId,
+      player_name: r.player_name,
+      finished_at: r.finished_at,
+      rank,
+      points: pointsForRank(rank)
+    };
+  });
+
+  const { error: upsertErr } = await supabase
+    .from("quiz_results")
+    .upsert(rows, { onConflict: "quiz_id,player_name" });
+
+  if (upsertErr) {
+    console.warn("[Results] upsert quiz_results failed", upsertErr);
+  }
+}
+
+function renderRanking(el, rows, mode) {
+  if (!el) return;
+  el.innerHTML = "";
+
+  if (!rows || rows.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "hint";
+    empty.textContent = mode === "quiz"
+      ? "Personne n’a fini pour l’instant."
+      : "Pas encore de stats.";
+    el.appendChild(empty);
+    return;
+  }
+
+  for (const r of rows) {
+    const card = document.createElement("div");
+    card.className = "rank-card";
+
+    const left = document.createElement("div");
+    left.className = "rank-left";
+
+    const dot = document.createElement("div");
+    dot.className = "rank-dot";
+    const c = PLAYER_COLOR.get(r.player_name);
+    if (c) card.style.setProperty("--player-color", c);
+
+    const name = document.createElement("div");
+    name.className = "rank-name";
+    name.textContent = r.player_name;
+
+    left.appendChild(dot);
+    left.appendChild(name);
+
+    const meta = document.createElement("div");
+    meta.className = "rank-meta";
+
+    if (mode === "quiz") {
+      meta.textContent = `#${r.rank} · ${r.points} pts`;
+    } else {
+      meta.textContent = `${r.total_points} pts · ${r.wins} win`;
+    }
+
+    card.appendChild(left);
+    card.appendChild(meta);
+    el.appendChild(card);
+  }
+}
+
+async function fetchAndRenderQuizRanking() {
+  if (!supabase || !quiz) return;
+  const quizId = getQuizId();
+
+  const { data, error } = await supabase
+    .from("quiz_results")
+    .select("player_name, rank, points")
+    .eq("quiz_id", quizId)
+    .order("rank", { ascending: true });
+
+  if (error) {
+    console.warn("[Stats] fetch quiz ranking failed", error);
+    return;
+  }
+
+  renderRanking(quizRankingEl, data || [], "quiz");
+}
+
+async function fetchAndRenderGlobalRanking() {
+  if (!supabase) return;
+
+  const { data, error } = await supabase
+    .from("v_player_stats")
+    .select("player_name, total_points, wins, quizzes_finished")
+    .order("total_points", { ascending: false });
+
+  if (error) {
+    console.warn("[Stats] fetch global ranking failed", error);
+    return;
+  }
+
+  renderRanking(globalRankingEl, data || [], "global");
+}
+
+
+ function subscribePresence() {
+  if (!supabase) return;
+  if (!quiz) return;
+  
+  const quizId = getQuizId();
+
+  // reset UI state
+  for (const k of Object.keys(othersState)) delete othersState[k];
+  redrawOthers();
+
+  // kill old channel
+  if (realtimeChannel) supabase.removeChannel(realtimeChannel);
+
+  realtimeChannel = supabase
+    .channel(`presence:${quizId}`)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "daily_presence", filter: `quiz_id=eq.${quizId}` },
+      (payload) => {
+        const row = payload.new;
+        if (!row) return;
+
+        // ===== Winner live =====
+        if (row.finished_at) {
+          if (!winner) {
+            winner = { player_name: row.player_name, finished_at: row.finished_at };
+            showWinnerBanner(row.player_name);
+          } else if (row.finished_at < winner.finished_at) {
+            winner = { player_name: row.player_name, finished_at: row.finished_at };
+            showWinnerBanner(row.player_name);
+          } 
+          updateQuizResultsFromPresence().then(() => {
+    fetchAndRenderQuizRanking();
+    fetchAndRenderGlobalRanking();
+  })
+
+        }
+
+        // ===== Others grid =====
+if (row.player_name === currentPlayer) return;
+
+// détecte progression
+const prev = lastFoundCount[row.player_name] ?? 0;
+const next = row.found_count ?? 0;
+const progressed = next > prev;
+
+lastFoundCount[row.player_name] = next;
+othersState[row.player_name] = row;
+
+redrawOthers(progressed ? row.player_name : null);
+
+      }
+    )
+    .subscribe();
+
+  // charge l'état actuel (joueurs déjà présents)
+  supabase
+    .from("daily_presence")
+    .select("*")
+    .eq("quiz_id", quizId)
+    .then(({ data, error }) => {
+      if (error) {
+        console.warn("[Supabase] select presence failed", error);
+        return;
+      }
+      if (!data) return;
+
+      for (const row of data) {
+        if (row.player_name === currentPlayer) continue;
+        othersState[row.player_name] = row;
+        lastFoundCount[row.player_name] = row.found_count ?? 0;
+      }
+      redrawOthers();
+
+      // winner initial (au cas où quelqu’un a déjà fini)
+      fetchWinner();
+      updateQuizResultsFromPresence();
+    });
+}
+
+function redrawOthers(highlightName = null) {
   if (!othersEl || !quiz) return;
 
   const rows = Object.values(othersState)
@@ -440,9 +708,22 @@ function redrawOthers() {
   for (const p of rows) {
     const card = document.createElement("div");
     card.className = "other-card";
+if (highlightName && p.player_name === highlightName) {
+  card.classList.add("is-updated");
+  setTimeout(() => card.classList.remove("is-updated"), 700);
 
-    const c = PLAYER_COLOR.get(p.player_name);
-    if (c) card.style.setProperty("--player-color", c);
+  const c = PLAYER_COLOR.get(p.player_name);
+if (c) {
+  card.style.setProperty("--player-color", c);
+  const rgb = hexToRgbTriplet(c);
+  if (rgb) card.style.setProperty("--player-rgb", rgb);
+}
+
+
+}
+
+
+
 
     const top = document.createElement("div");
     top.className = "other-top";
@@ -493,6 +774,20 @@ function redrawOthers() {
   if (resetBtn) {
   resetBtn.addEventListener("click", resetQuizForEveryone);
 }
+
+if (statsBtn) {
+  statsBtn.addEventListener("click", async () => {
+    showScreen("stats");
+    await updateQuizResultsFromPresence();
+    await fetchAndRenderQuizRanking();
+    await fetchAndRenderGlobalRanking();
+  });
+}
+
+if (backToGameBtn) {
+  backToGameBtn.addEventListener("click", () => showScreen("game"));
+}
+
 
   // ====== Boot ======
   renderPlayers();
