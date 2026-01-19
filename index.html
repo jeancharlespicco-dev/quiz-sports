@@ -5,9 +5,21 @@
   <title>Daily Quiz</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="icon" href="assets/logos/icon-color.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 </head>
 <body>
+
+  <!-- Splash / Intro -->
+<div id="splash" class="splash">
+  <div class="splash-inner">
+    <img src="assets/logos/logo-homepage.svg" alt="Quiz Sports" class="splash-logo">
+    <div class="splash-underline"></div>
+  </div>
+</div>
+
 
   <!-- Écran sélection joueur -->
   <div class="container" id="screen-player">
@@ -36,9 +48,13 @@
       <button class="ghost-btn" id="change-player-btn" type="button">Changer de joueur</button>
       <button class="ghost-btn" id="reset-btn" type="button">Reset</button>
       <button class="ghost-btn" id="stats-btn" type="button">Stats</button>
-      <div id="winner-banner" class="winner-banner hidden"></div>
+          </div>
 
-    </div>
+    <div class="top-notices">
+  <div id="winner-banner" class="winner-banner hidden"></div>
+  <div id="my-finish-card" class="finish-card hidden"></div>
+</div>
+
 
     <h1 id="quiz-title">Daily Quiz</h1>
     <p id="quiz-prompt"></p>

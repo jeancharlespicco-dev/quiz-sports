@@ -3,14 +3,14 @@
 
   // ====== Config joueurs (tu modifies ici) ======
   const PLAYERS = [
-    { name: "TSP", color: "#4366BB" }, // bleu
-    { name: "JCP", color: "#22C55E" },  // vert
-    { name: "XL", color: "#EEA825" }, // ambre
-    { name: "MC", color: "#73AFB9" },  // teal
-    { name: "NG", color: "#B68489" },  // rouge
-    { name: "LBL", color: "#15803D" },  // vert foncé
-    { name: "HB", color: "#2C535A" },  // bleu marine
-    { name: "MM", color: "#a46f0d" },  // or foncé
+    { name: "HB", color: "#22C55E" }, 
+    { name: "JCP", color: "#4366BB" }, 
+    { name: "LBL", color: "#EEA825" }, 
+    { name: "MC", color: "#B68489" },  
+    { name: "MM", color: "#0F172A" },  
+    { name: "NG", color: "#15803D" },  
+    { name: "TSP", color: "#73AFB9" },  
+    { name: "XL", color: "#DB9411" },  
   ];
 const PLAYER_COLOR = new Map(PLAYERS.map(p => [p.name, p.color]));
 const ALLOWED_PLAYERS = new Set(PLAYERS.map(p => p.name));
@@ -128,6 +128,48 @@ async function fetchWinner() {
   showWinnerBanner(row.player_name);
 }
 
+function hideMyFinishCard(){
+  const el = document.getElementById("my-finish-card");
+  if (!el) return;
+  el.classList.add("hidden");
+  el.innerHTML = "";
+}
+
+function showMyFinishCard(rank, points){
+  const el = document.getElementById("my-finish-card");
+  if (!el) return;
+
+  el.innerHTML = `
+    <div class="left">
+      <div class="title">🎉 Terminé !</div>
+      <div class="sub">Tu es arrivé #${rank}</div>
+    </div>
+    <div class="right">+${points} pts</div>
+  `;
+  el.classList.remove("hidden");
+}
+
+async function fetchMyResultAndShow(){
+  if (!supabase || !quiz || !currentPlayer) return;
+
+  const quizId = getQuizId();
+
+  const { data, error } = await supabase
+    .from("quiz_results")
+    .select("rank, points")
+    .eq("quiz_id", quizId)
+    .eq("player_name", currentPlayer)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("[FinishCard] fetch my result failed", error);
+    return;
+  }
+
+  if (!data) return;
+  showMyFinishCard(data.rank, data.points);
+}
+
 
 
   // ====== Utils ======
@@ -143,12 +185,16 @@ async function fetchWinner() {
 function hexToRgbTriplet(hex) {
   const h = (hex || "").replace("#", "").trim();
   if (h.length !== 6) return null;
+
   const r = parseInt(h.slice(0, 2), 16);
   const g = parseInt(h.slice(2, 4), 16);
   const b = parseInt(h.slice(4, 6), 16);
-  if ([r,g,b].some(n => Number.isNaN(n))) return null;
-  return `${r} ${g} ${b}`; // format "67 102 187"
+
+  if ([r, g, b].some(n => Number.isNaN(n))) return null;
+
+  return `${r}, ${g}, ${b}`; // ex: "67, 102, 187"
 }
+
 
   function getTodayId() {
     const d = new Date();
@@ -210,6 +256,24 @@ function showScreen(which) {
   if (which === "player") screenPlayer?.classList.remove("hidden");
   if (which === "game") screenGame?.classList.remove("hidden");
   if (which === "stats") screenStats?.classList.remove("hidden");
+}
+
+function runSplashIntro() {
+  const splash = document.getElementById("splash");
+  if (!splash) return;
+
+  // Respecte "reduced motion"
+  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const total = reduce ? 100 : 1100; // durée totale avant fade out
+
+  window.setTimeout(() => {
+    splash.classList.add("is-hiding");
+
+    // une fois l'anim finie, on le retire
+    window.setTimeout(() => {
+      splash.classList.add("is-hidden");
+    }, 360);
+  }, total);
 }
 
 function pointsForRank(rank) {
@@ -307,31 +371,62 @@ function updateUI() {
     });
   }
 
-  function checkAnswer(value) {
-    if (!quiz) return;
-    const normalized = normalize(value);
-    if (!normalized) return;
+function checkAnswer(value) {
+  if (!quiz) return;
 
-    for (const item of quiz.items) {
-      if (found.has(item.answer)) continue;
+  const normalized = normalize(value);
+  if (!normalized) return;
 
-      const allAnswers = [item.answer, ...(item.aliases || [])];
-      const match = allAnswers.some(a => normalize(a) === normalized);
+  for (const item of quiz.items) {
+    if (found.has(item.answer)) continue;
 
-      if (match) {
-        found.add(item.answer);
-        saveProgress();
-        ensurePresenceRow();
+    const allAnswers = [item.answer, ...(item.aliases || [])];
+    const match = allAnswers.some(a => normalize(a) === normalized);
 
-        if (input) input.value = "";
-        updateUI();
-        renderList();
+    if (match) {
+      found.add(item.answer);
 
-        if (found.size === quiz.items.length) input?.blur();
-        break;
+      saveProgress();
+      ensurePresenceRow();
+
+      if (input) input.value = "";
+      updateUI();
+      renderList();
+
+      // ===== Micro feedback (toi) =====
+      // 1) pulse sur ton score
+      const myScoreEl = document.getElementById("my-score");
+      if (myScoreEl) {
+        myScoreEl.classList.remove("is-pop");
+        void myScoreEl.offsetWidth;
+        myScoreEl.classList.add("is-pop");
+        setTimeout(() => myScoreEl.classList.remove("is-pop"), 260);
       }
+
+      // 2) flash sur la case trouvée
+      const idx = quiz.items.findIndex(it => it.answer === item.answer);
+      if (idx >= 0 && listEl && listEl.children && listEl.children[idx]) {
+        const li = listEl.children[idx];
+        li.classList.remove("is-flash");
+        void li.offsetWidth;
+        li.classList.add("is-flash");
+        setTimeout(() => li.classList.remove("is-flash"), 460);
+      }
+
+      // ===== Fin du quiz =====
+      if (found.size === quiz.items.length) {
+        input?.blur();
+
+        updateQuizResultsFromPresence()
+          .then(fetchMyResultAndShow)
+          .catch(() => {});
+      }
+
+      break; // ✅ important : on sort dès qu'on a match
     }
   }
+}
+
 
   // ====== Load quiz ======
 async function loadQuiz() {
@@ -356,6 +451,7 @@ async function loadQuiz() {
     promptEl.textContent = quiz.prompt || "";
 winner = null;
 hideWinnerBanner();
+hideMyFinishCard();
 fetchWinner();
 
     found = new Set();
@@ -417,6 +513,8 @@ async function resetQuizForEveryone() {
 
   winner = null;
   hideWinnerBanner();
+  hideMyFinishCard();
+
 
   // 4) UI
   updateUI();
@@ -705,55 +803,54 @@ function redrawOthers(highlightName = null) {
   // ✅ si personne n'a encore trouvé : on n'affiche rien (comme demandé)
   if (rows.length === 0) return;
 
-  for (const p of rows) {
-    const card = document.createElement("div");
-    card.className = "other-card";
-if (highlightName && p.player_name === highlightName) {
-  card.classList.add("is-updated");
-  setTimeout(() => card.classList.remove("is-updated"), 700);
+for (const p of rows) {
+  const card = document.createElement("div");
+  card.className = "other-card";
 
+  // ✅ couleur du joueur (toujours)
   const c = PLAYER_COLOR.get(p.player_name);
-if (c) {
-  card.style.setProperty("--player-color", c);
-  const rgb = hexToRgbTriplet(c);
-  if (rgb) card.style.setProperty("--player-rgb", rgb);
-}
-
-
-}
-
-
-
-
-    const top = document.createElement("div");
-    top.className = "other-top";
-
-    const dot = document.createElement("div");
-    dot.className = "other-dot";
-
-    const name = document.createElement("div");
-    name.className = "other-name";
-    name.textContent = p.player_name;
-
-    top.appendChild(dot);
-    top.appendChild(name);
-
-    const score = document.createElement("div");
-    score.className = "other-score";
-    score.textContent = `${p.found_count ?? 0}/${quiz.items.length}`;
-
-    card.appendChild(top);
-    card.appendChild(score);
-
-    if (p.finished_at) {
-      const fini = document.createElement("div");
-      fini.className = "other-fini";
-      fini.textContent = "Fini";
-      card.appendChild(fini);
-    }
-
-    othersEl.appendChild(card);
+  if (c) {
+    card.style.setProperty("--player-color", c);
+    const rgb = hexToRgbTriplet(c);
+    if (rgb) card.style.setProperty("--player-rgb", rgb);
   }
+
+  // ✅ pulse si c’est lui qui vient de progresser
+  if (highlightName && p.player_name === highlightName) {
+    card.classList.add("is-updated");
+    setTimeout(() => card.classList.remove("is-updated"), 700);
+  }
+
+  const top = document.createElement("div");
+  top.className = "other-top";
+
+  const dot = document.createElement("div");
+  dot.className = "other-dot";
+
+  const name = document.createElement("div");
+  name.className = "other-name";
+  name.textContent = p.player_name;
+
+  top.appendChild(dot);
+  top.appendChild(name);
+
+  const score = document.createElement("div");
+  score.className = "other-score";
+  score.textContent = `${p.found_count ?? 0}/${quiz.items.length}`;
+
+  card.appendChild(top);
+  card.appendChild(score);
+
+  if (p.finished_at) {
+    const fini = document.createElement("div");
+    fini.className = "other-fini";
+    fini.textContent = "Fini";
+    card.appendChild(fini);
+  }
+
+  othersEl.appendChild(card);
+}
+
 }
 
 
@@ -790,8 +887,11 @@ if (backToGameBtn) {
 
 
   // ====== Boot ======
+  runSplashIntro();
+
   renderPlayers();
   loadQuiz();
+  
 
   const saved = localStorage.getItem("dq_player");
   const savedColor = localStorage.getItem("dq_player_color") || "";

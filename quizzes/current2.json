@@ -8,7 +8,7 @@
     { "answer": "Olympique Lyonnais", "aliases": ["OL", "Lyon"] },
     { "answer": "AS Monaco", "aliases": ["Monaco"] },
     { "answer": "LOSC Lille", "aliases": ["Lille", "LOSC"] },
-    { "answer": "RC Lens", "aliases": ["Lens"] },
+        { "answer": "RC Lens", "aliases": ["Lens"] },
     { "answer": "OGC Nice", "aliases": ["Nice"] },
     { "answer": "Stade Brestois", "aliases": ["Brest"] },
     { "answer": "SCO Angers", "aliases": ["Angers"] },
@@ -21,5 +21,6 @@
     { "answer": "FC Nantes", "aliases": ["Nantes", "FCNA"] },
     { "answer": "AJ Auxerre", "aliases": ["AJA", "Auxerre"] },
     { "answer": "FC Metz", "aliases": ["Metz"] }
-    ]
+
+  ]
 }
