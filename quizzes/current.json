@@ -3,23 +3,95 @@
   "title": "Clubs de Ligue 1",
   "prompt": "Tape les clubs actuellement en Ligue 1",
   "items": [
-    { "answer": "Paris Saint-Germain", "aliases": ["PSG", "Paris SG"] },
-    { "answer": "Olympique de Marseille", "aliases": ["OM", "Marseille"] },
-    { "answer": "Olympique Lyonnais", "aliases": ["OL", "Lyon"] },
-    { "answer": "AS Monaco", "aliases": ["Monaco"] },
-    { "answer": "LOSC Lille", "aliases": ["Lille", "LOSC"] },
-    { "answer": "RC Lens", "aliases": ["Lens"] },
-    { "answer": "OGC Nice", "aliases": ["Nice"] },
-    { "answer": "Stade Brestois", "aliases": ["Brest"] },
-    { "answer": "SCO Angers", "aliases": ["Angers"] },
-    { "answer": "FC Lorient", "aliases": ["Lorient"] },
-    { "answer": "RC Strasbourg", "aliases": ["Strasbourg"] },
-    { "answer": "Stade Rennais", "aliases": ["SRFC", "Rennes"] },
-    { "answer": "Toulouse Football Club", "aliases": ["TFC", "Toulouse"] },
-    { "answer": "Paris FC", "aliases": ["PFC"] },
-    { "answer": "Le Havre AC", "aliases": ["Le Havre"] },
-    { "answer": "FC Nantes", "aliases": ["Nantes", "FCNA"] },
-    { "answer": "AJ Auxerre", "aliases": ["AJA", "Auxerre"] },
-    { "answer": "FC Metz", "aliases": ["Metz"] }
-    ]
+    {
+      "answer": "Paris Saint-Germain",
+      "aliases": ["PSG", "Paris SG"],
+      "hints": ["Capitale", "Parc des Princes"]
+    },
+    {
+      "answer": "Olympique de Marseille",
+      "aliases": ["OM", "Marseille"],
+      "hints": ["Plus grand port de France", "Stade Vélodrome"]
+    },
+    {
+      "answer": "Olympique Lyonnais",
+      "aliases": ["OL", "Lyon"],
+      "hints": ["Rhône", "Groupama Stadium"]
+    },
+    {
+      "answer": "AS Monaco",
+      "aliases": ["Monaco"],
+      "hints": ["Principauté", "Stade Louis-II"]
+    },
+    {
+      "answer": "LOSC Lille",
+      "aliases": ["Lille", "LOSC"],
+      "hints": ["Nord", "Stade Pierre-Mauroy"]
+    },
+    {
+      "answer": "RC Lens",
+      "aliases": ["Lens"],
+      "hints": ["Pas-de-Calais", "Sang et Or"]
+    },
+    {
+      "answer": "OGC Nice",
+      "aliases": ["Nice"],
+      "hints": ["Côte d’Azur", "Allianz Riviera"]
+    },
+    {
+      "answer": "Stade Brestois",
+      "aliases": ["Brest"],
+      "hints": ["Finistère", "Bout du monde"]
+    },
+    {
+      "answer": "SCO Angers",
+      "aliases": ["Angers"],
+      "hints": ["Maine-et-Loire", "Les Noir et Blanc"]
+    },
+    {
+      "answer": "FC Lorient",
+      "aliases": ["Lorient"],
+      "hints": ["Bretagne", "Les Merlus"]
+    },
+    {
+      "answer": "RC Strasbourg",
+      "aliases": ["Strasbourg"],
+      "hints": ["Alsace", "La Meinau"]
+    },
+    {
+      "answer": "Stade Rennais",
+      "aliases": ["SRFC", "Rennes"],
+      "hints": ["Bretagne", "Roazhon Park"]
+    },
+    {
+      "answer": "Toulouse Football Club",
+      "aliases": ["TFC", "Toulouse"],
+      "hints": ["Ville Rose", "Stadium de Toulouse"]
+    },
+    {
+      "answer": "Paris FC",
+      "aliases": ["PFC"],
+      "hints": ["Deuxième club de Paris", "Stade Charléty"]
+    },
+    {
+      "answer": "Le Havre AC",
+      "aliases": ["Le Havre"],
+      "hints": ["Normandie", "Plus vieux club pro français"]
+    },
+    {
+      "answer": "FC Nantes",
+      "aliases": ["Nantes", "FCNA"],
+      "hints": ["Loire-Atlantique", "Les Canaris"]
+    },
+    {
+      "answer": "AJ Auxerre",
+      "aliases": ["AJA", "Auxerre"],
+      "hints": ["Bourgogne", "Abbé-Deschamps"]
+    },
+    {
+      "answer": "FC Metz",
+      "aliases": ["Metz"],
+      "hints": ["Lorraine", "Les Grenats"]
+    }
+  ]
 }

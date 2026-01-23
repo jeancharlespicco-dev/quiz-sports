@@ -74,9 +74,14 @@ const lastFoundCount = {}; // player_name -> number
 
 
   // ====== State ======
+  let hintsCostTotal = 0;
+  let pendingHint = null; // { answer, expiresAt }
   let quiz = null;
   let found = new Set();
   let currentPlayer = null;
+  let hintsUsedByAnswer = {}; // { "Paris SG": 1, ... }
+let hintsUsedTotal = 0;
+
 
 let winner = null; // { player_name, finished_at }
 
@@ -195,6 +200,33 @@ function hexToRgbTriplet(hex) {
   return `${r}, ${g}, ${b}`; // ex: "67, 102, 187"
 }
 
+function hintPenaltyForNthHint(n) {
+  // n = 1,2,3… (indice débloqué n°n sur une question)
+  return n; // 1->1pt, 2->2pts, 3->3pts (progressif)
+}
+
+
+function ensureToast() {
+  let el = document.getElementById("toast");
+  if (el) return el;
+
+  el = document.createElement("div");
+  el.id = "toast";
+  el.className = "toast";
+  document.body.appendChild(el);
+  return el;
+}
+
+let toastTimer = null;
+function showToast(msg) {
+  const el = ensureToast();
+  el.textContent = msg;
+  el.classList.add("is-show");
+
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("is-show"), 1600);
+}
+
 
   function getTodayId() {
     const d = new Date();
@@ -222,7 +254,14 @@ function hexToRgbTriplet(hex) {
   function saveProgress() {
     if (!quiz || !currentPlayer) return;
     const key = storageKey(getQuizId(), currentPlayer);
-    const payload = { foundAnswers: Array.from(found), savedAt: Date.now() };
+    const payload = {
+  foundAnswers: Array.from(found),
+  hintsUsedByAnswer: hintsUsedByAnswer || {},
+  hintsUsedTotal: hintsUsedTotal || 0,
+  hintsCostTotal: hintsCostTotal || 0,
+  savedAt: Date.now()
+};
+
     localStorage.setItem(key, JSON.stringify(payload));
   }
 
@@ -242,6 +281,13 @@ function hexToRgbTriplet(hex) {
         if (answersSet.has(a)) valid.add(a);
       }
       found = valid;
+      hintsUsedByAnswer = (data.hintsUsedByAnswer && typeof data.hintsUsedByAnswer === "object")
+  ? data.hintsUsedByAnswer
+  : {};
+
+hintsUsedTotal = Number.isFinite(data.hintsUsedTotal) ? data.hintsUsedTotal : 0;
+hintsCostTotal = Number.isFinite(data.hintsCostTotal) ? data.hintsCostTotal : 0;
+
     } catch {
       found = new Set();
     }
@@ -322,6 +368,7 @@ function pointsForRank(rank) {
     loadProgress();
     updateUI();
     renderList();
+    renderLiveLadder();
 
     ensurePresenceRow();
     subscribePresence();
@@ -347,12 +394,14 @@ function updateUI() {
   if (!quiz || !quiz.items) {
     if (progressEl) progressEl.textContent = "";
     if (myScoreEl) myScoreEl.textContent = "— / —";
+    renderLiveLadder();
     return;
   }
 
   const text = `${found.size} / ${quiz.items.length}`;
   if (progressEl) progressEl.textContent = text;
   if (myScoreEl) myScoreEl.textContent = text;
+  renderLiveLadder();
 }
 
 
@@ -365,8 +414,23 @@ function updateUI() {
         li.textContent = item.answer;
         li.classList.add("found");
       } else {
-        li.textContent = "—";
-      }
+  li.textContent = "—";
+  li.classList.add("is-missing");
+
+  const used = hintsUsedByAnswer[item.answer] || 0;
+  if (used > 0) {
+    li.classList.add("is-hinted");      // style léger
+    li.dataset.hintsUsed = String(used); // pour badge CSS si tu veux
+  }
+
+  // clickable seulement s'il y a des hints
+if (item.hints && item.hints.length > 0) {
+  li.classList.add("is-hintable");
+  li.title = "Cliquer pour débloquer un indice (coût: -1 puis -2 puis -3…)";
+}
+
+}
+
       listEl.appendChild(li);
     });
   }
@@ -464,6 +528,7 @@ fetchWinner();
 
     updateUI();
     renderList();
+    renderLiveLadder();
 
     if (currentPlayer) {
       ensurePresenceRow();
@@ -515,6 +580,8 @@ async function resetQuizForEveryone() {
   hideWinnerBanner();
   hideMyFinishCard();
 
+hintsUsedByAnswer = {};
+hintsUsedTotal = 0;
 
   // 4) UI
   updateUI();
@@ -580,6 +647,8 @@ async function resetQuiz() {
           player_name: currentPlayer,
           found_count: found.size,
           finished_at: finished ? new Date().toISOString() : null,
+          hints_used: hintsUsedTotal,
+          hints_cost: hintsCostTotal,
           updated_at: new Date().toISOString()
         });
     } catch (e) {
@@ -593,7 +662,7 @@ async function resetQuiz() {
 
   const { data, error } = await supabase
     .from("daily_presence")
-    .select("player_name, finished_at")
+    .select("player_name, finished_at, hints_used, hints_cost")
     .eq("quiz_id", quizId)
     .not("finished_at", "is", null)
     .order("finished_at", { ascending: true });
@@ -608,15 +677,23 @@ async function resetQuiz() {
 
   // upsert rank/points
   const rows = finished.map((r, idx) => {
-    const rank = idx + 1;
-    return {
-      quiz_id: quizId,
-      player_name: r.player_name,
-      finished_at: r.finished_at,
-      rank,
-      points: pointsForRank(rank)
-    };
-  });
+  const rank = idx + 1;
+  const rankPoints = pointsForRank(rank);
+  const hints = r.hints_cost ?? (r.hints_used ?? 0);
+  const finalPoints = Math.max(0, rankPoints - hints);
+
+
+  return {
+    quiz_id: quizId,
+    player_name: r.player_name,
+    finished_at: r.finished_at,
+    rank,
+    rank_points: rankPoints,
+    hints_used: hints,
+    points: finalPoints
+  };
+});
+
 
   const { error: upsertErr } = await supabase
     .from("quiz_results")
@@ -850,9 +927,112 @@ for (const p of rows) {
 
   othersEl.appendChild(card);
 }
+renderLiveLadder();
 
 }
 
+function getActiveRowsForLadder() {
+  if (!quiz) return [];
+
+  const total = quiz.items.length;
+
+  // Moi : toujours affiché (même à 0) -> anti-shame pour les autres, mais toi tu te vois
+  const me = currentPlayer ? [{
+    player_name: currentPlayer,
+    found_count: found.size,
+    finished_at: (found.size === total) ? new Date().toISOString() : null,
+    __isMe: true
+  }] : [];
+
+  // Autres : uniquement ceux "actifs" (>=1 trouvé) -> anti-shame
+  const others = Object.values(othersState)
+    .filter(p => ALLOWED_PLAYERS.has(p.player_name))
+    .filter(p => (p.found_count ?? 0) > 0);
+
+  // dédoublonne au cas où
+  const map = new Map();
+  for (const r of [...others, ...me]) map.set(r.player_name, r);
+  return Array.from(map.values());
+}
+
+function renderLiveLadder() {
+  const host = document.getElementById("live-ladder");
+  if (!host || !quiz) return;
+  // Masque la grille des autres joueurs (redondante avec le ladder)
+if (othersEl) othersEl.style.display = "none";
+
+
+  const total = quiz.items.length;
+  const rows = getActiveRowsForLadder();
+
+  // si personne n'a commencé ET toi non plus (cas rare), tu peux choisir de masquer
+  // Ici: on affiche quand même si toi tu es là, pour donner une "scène" stable.
+  if (!currentPlayer) {
+    const isInit = !host.hasChildNodes();
+    host.innerHTML = "";
+    return;
+  }
+
+  // tri par progression (desc), puis finished_at si tu veux
+  rows.sort((a, b) => {
+    const da = (a.found_count ?? 0);
+    const db = (b.found_count ?? 0);
+    if (db !== da) return db - da;
+    // à égalité: moi d'abord (petit confort)
+    if (a.__isMe && !b.__isMe) return -1;
+    if (!a.__isMe && b.__isMe) return 1;
+    return 0;
+  });
+
+  const leader = rows[0]?.player_name || null;
+
+  // Track + markers
+  const markersHtml = rows.map(r => {
+    const name = r.player_name;
+    const count = Math.max(0, Math.min(total, r.found_count ?? 0));
+    const rawPct = total > 0 ? (count / total) * 100 : 0;
+const pct = Math.max(4, Math.min(96, rawPct));
+
+
+    const color = PLAYER_COLOR.get(name) || "#4366BB";
+    const rgb = hexToRgbTriplet(color) || "67, 102, 187";
+
+const classes = [
+  "ladder-marker",
+  isInit ? "is-init" : "",
+  (name === leader ? "is-leader" : ""),
+  (r.__isMe ? "is-me" : "")
+].filter(Boolean).join(" ");
+
+
+    // initiales = ton format actuel (HB, JCP…)
+    const label = name;
+
+    return `
+      <div
+        class="${classes}"
+        style="--player-color:${color}; --player-rgb:${rgb}; left:${pct}%"
+        title="${name} · ${count}/${total}${name === leader ? " (Leader)" : ""}"
+      >
+        <span class="marker-dot"></span>
+        <span class="marker-label">${label}</span>
+      </div>
+    `;
+  }).join("");
+
+  host.innerHTML = `
+    <div class="ladder-head">
+      <div class="ladder-title">Classement live</div>
+    </div>
+
+    <div class="ladder-track" role="img" aria-label="Progression des joueurs">
+      <div class="ladder-track-fill" style="width:${total ? (Math.max(...rows.map(r => (r.found_count ?? 0))) / total) * 100 : 0}%"></div>
+      <div class="ladder-tick is-0">0</div>
+      <div class="ladder-tick is-max">${total}</div>
+      ${markersHtml}
+    </div>
+  `;
+}
 
 
   // ====== Events ======
@@ -883,6 +1063,57 @@ if (statsBtn) {
 
 if (backToGameBtn) {
   backToGameBtn.addEventListener("click", () => showScreen("game"));
+}
+
+if (listEl) {
+  listEl.addEventListener("click", (e) => {
+    if (!quiz || !quiz.items) return;
+
+    const li = e.target.closest("li");
+    if (!li) return;
+
+    const idx = Array.prototype.indexOf.call(listEl.children, li);
+    if (idx < 0) return;
+
+    const item = quiz.items[idx];
+    if (!item) return;
+
+    // si déjà trouvé : on peut (optionnel) afficher les indices déjà débloqués
+    const alreadyFound = found.has(item.answer);
+
+    const hints = item.hints || [];
+    if (hints.length === 0) return;
+
+const used = hintsUsedByAnswer[item.answer] || 0;
+
+// Débloque un nouvel indice
+if (!alreadyFound && used < hints.length) {
+  const newUsed = used + 1;
+  hintsUsedByAnswer[item.answer] = newUsed;
+
+  // coût progressif : 1er indice = -1, 2e = -2, etc.
+  const penalty = newUsed;
+  hintsUsedTotal += 1;
+  hintsCostTotal += penalty;
+
+  saveProgress();
+  ensurePresenceRow();
+
+  showToast(`💡 (-${penalty} pt) ${hints[newUsed - 1]}`);
+  renderList();
+  return;
+}
+
+
+    // Sinon : revoir à volonté (gratuit) -> on montre le dernier débloqué
+    const toShowIndex = Math.max(0, Math.min(used, hints.length) - 1);
+    if (used > 0) {
+      showToast(`💡 Indice : ${hints[toShowIndex]}`);
+    } else {
+      // Aucun indice débloqué mais item déjà trouvé (ou autre cas)
+      showToast("💡 Aucun indice débloqué pour cet item.");
+    }
+  });
 }
 
 
