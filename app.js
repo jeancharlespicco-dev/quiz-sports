@@ -1025,64 +1025,69 @@ function renderLiveLadder() {
   );
 
   // 3) Crée / met à jour les markers
-  for (const r of rows) {
-    const name = r.player_name;
-    const count = Math.max(0, Math.min(total, r.found_count ?? 0));
-    const prev = lastLadderCount[name] ?? count;
-const progressed = count > prev;
-if (progressed && r.__isMe) {
-  const track = host.querySelector(".ladder-track");
-  if (track) {
-    track.style.setProperty("--me-rgb", rgb);  // rgb = "67, 102, 187" etc.
-    track.classList.remove("is-me-pulse");
-    void track.offsetWidth;
-    track.classList.add("is-me-pulse");
-    setTimeout(() => track.classList.remove("is-me-pulse"), 260);
-  }
-}
-lastLadderCount[name] = count;
+for (const r of rows) {
+  const name = r.player_name;
+  const count = Math.max(0, Math.min(total, r.found_count ?? 0));
 
+  // progression (pour bump + rail pulse)
+  const prev = lastLadderCount[name] ?? count;
+  const progressed = count > prev;
+  lastLadderCount[name] = count;
 
-    const rawPct = total > 0 ? (count / total) * 100 : 0;
-    const pct = Math.max(4, Math.min(96, rawPct)); // évite les bords
+  const rawPct = total > 0 ? (count / total) * 100 : 0;
+  const pct = Math.max(4, Math.min(96, rawPct));
 
-    const color = PLAYER_COLOR.get(name) || "#4366BB";
-    const rgb = hexToRgbTriplet(color) || "67, 102, 187";
+  const color = PLAYER_COLOR.get(name) || "#4366BB";
+  const rgb = hexToRgbTriplet(color) || "67, 102, 187";
 
-    let el = existing.get(name);
-
-    if (!el) {
-      el = document.createElement("div");
-      el.className = "ladder-marker";
-      el.dataset.player = name;
-      el.innerHTML = `
-        <span class="marker-dot"></span>
-        <span class="marker-label"></span>
-      `;
-      wrap.appendChild(el);
+  // rail pulse seulement pour moi
+  if (progressed && r.__isMe) {
+    const track = host.querySelector(".ladder-track");
+    if (track) {
+      track.style.setProperty("--me-rgb", rgb);
+      track.classList.remove("is-me-pulse");
+      void track.offsetWidth;
+      track.classList.add("is-me-pulse");
+      setTimeout(() => track.classList.remove("is-me-pulse"), 260);
     }
+  }
 
-    el.classList.toggle("is-leader", name === leader);
-    el.classList.toggle("is-me", !!r.__isMe);
+  let el = existing.get(name);
 
-    el.style.setProperty("--player-color", color);
-    el.style.setProperty("--player-rgb", rgb);
-    el.style.left = `${pct}%`;
-    if (progressed) {
-  el.classList.remove("is-bumped");
-  void el.offsetWidth; // force reflow pour rejouer l'anim
-  el.classList.add("is-bumped");
-  setTimeout(() => el.classList.remove("is-bumped"), 260);
+  if (!el) {
+    el = document.createElement("div");
+    el.className = "ladder-marker";
+    el.dataset.player = name;
+    el.innerHTML = `
+      <span class="marker-dot"></span>
+      <span class="marker-label"></span>
+    `;
+    wrap.appendChild(el);
+  }
+
+  el.classList.toggle("is-leader", name === leader);
+  el.classList.toggle("is-me", !!r.__isMe);
+
+  el.style.setProperty("--player-color", color);
+  el.style.setProperty("--player-rgb", rgb);
+  el.style.left = `${pct}%`;
+
+  const labelEl = el.querySelector(".marker-label");
+  if (labelEl) labelEl.textContent = name;
+
+  el.title = `${name} · ${count}/${total}${name === leader ? " (Leader)" : ""}`;
+
+  // bump sur progression (si tu veux)
+  if (progressed) {
+    el.classList.remove("is-bumped");
+    void el.offsetWidth;
+    el.classList.add("is-bumped");
+    setTimeout(() => el.classList.remove("is-bumped"), 260);
+  }
+
+  existing.delete(name);
 }
 
-
-    const labelEl = el.querySelector(".marker-label");
-    if (labelEl) labelEl.textContent = name;
-
-    el.title = `${name} · ${count}/${total}${name === leader ? " (Leader)" : ""}`;
-
-    existing.delete(name);
-  }
 
   // 4) Supprime ceux qui ne sont plus affichés
   for (const el of existing.values()) el.remove();
