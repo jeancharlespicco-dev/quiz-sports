@@ -958,96 +958,100 @@ function getActiveRowsForLadder() {
 function renderLiveLadder() {
   const host = document.getElementById("live-ladder");
   if (!host || !quiz) return;
-  // Masque la grille des autres joueurs (redondante avec le ladder)
 
-
-
-  const total = quiz.items.length;
-  const rows = getActiveRowsForLadder();
-  const isInit = !host.hasChildNodes();
-
-  // si personne n'a commencé ET toi non plus (cas rare), tu peux choisir de masquer
-  // Ici: on affiche quand même si toi tu es là, pour donner une "scène" stable.
   if (!currentPlayer) {
-
-  host.innerHTML = `
-  <div class="ladder-head">
-    <div class="ladder-title">Classement live</div>
-  </div>
-
-  <div class="ladder-track" role="img" aria-label="Progression des joueurs">
-    <div class="ladder-track-fill"></div>
-    <div class="ladder-tick is-0">0</div>
-    <div class="ladder-tick is-max">${total}</div>
-    <div class="ladder-markers"></div>
-  </div>
-`;
-
+    host.innerHTML = "";
     return;
   }
 
+  // Masque la grille des autres joueurs (redondante avec le ladder)
   if (othersEl) othersEl.style.display = "none";
 
-  // tri par progression (desc), puis finished_at si tu veux
-  rows.sort((a, b) => {
-    const da = (a.found_count ?? 0);
-    const db = (b.found_count ?? 0);
-    if (db !== da) return db - da;
-    // à égalité: moi d'abord (petit confort)
-    if (a.__isMe && !b.__isMe) return -1;
-    if (!a.__isMe && b.__isMe) return 1;
-    return 0;
-  });
+  const total = quiz.items.length;
+  const rows = getActiveRowsForLadder();
+
+  // tri
+  rows.sort((a, b) => (b.found_count ?? 0) - (a.found_count ?? 0));
 
   const leader = rows[0]?.player_name || null;
 
-  // Track + markers
-  const markersHtml = rows.map(r => {
+  // 1) Squelette: créé une seule fois
+  if (!host.dataset.ready) {
+    host.innerHTML = `
+      <div class="ladder-head">
+        <div class="ladder-title">Classement live</div>
+      </div>
+
+      <div class="ladder-track" role="img" aria-label="Progression des joueurs">
+        <div class="ladder-track-fill"></div>
+        <div class="ladder-tick is-0">0</div>
+        <div class="ladder-tick is-max"></div>
+        <div class="ladder-markers"></div>
+      </div>
+    `;
+    host.dataset.ready = "1";
+  }
+
+  const fill = host.querySelector(".ladder-track-fill");
+  const tickMax = host.querySelector(".ladder-tick.is-max");
+  const wrap = host.querySelector(".ladder-markers");
+  if (!wrap) return;
+
+  if (tickMax) tickMax.textContent = String(total);
+
+  // Fill = position du meilleur (très subtil)
+  const maxFound = rows.length ? Math.max(...rows.map(r => (r.found_count ?? 0))) : 0;
+  const fillPct = total ? (maxFound / total) * 100 : 0;
+  if (fill) fill.style.width = `${fillPct}%`;
+
+  // 2) Index des markers existants (pour réutiliser le DOM)
+  const existing = new Map(
+    Array.from(wrap.children).map(el => [el.dataset.player, el])
+  );
+
+  // 3) Crée / met à jour les markers
+  for (const r of rows) {
     const name = r.player_name;
     const count = Math.max(0, Math.min(total, r.found_count ?? 0));
-    const rawPct = total > 0 ? (count / total) * 100 : 0;
-const pct = Math.max(4, Math.min(96, rawPct));
 
+    const rawPct = total > 0 ? (count / total) * 100 : 0;
+    const pct = Math.max(4, Math.min(96, rawPct)); // évite les bords
 
     const color = PLAYER_COLOR.get(name) || "#4366BB";
     const rgb = hexToRgbTriplet(color) || "67, 102, 187";
 
-const classes = [
-  "ladder-marker",
-  isInit ? "is-init" : "",
-  (name === leader ? "is-leader" : ""),
-  (r.__isMe ? "is-me" : "")
-].filter(Boolean).join(" ");
+    let el = existing.get(name);
 
-
-    // initiales = ton format actuel (HB, JCP…)
-    const label = name;
-
-    return `
-      <div
-        class="${classes}"
-        style="--player-color:${color}; --player-rgb:${rgb}; left:${pct}%"
-        title="${name} · ${count}/${total}${name === leader ? " (Leader)" : ""}"
-      >
+    if (!el) {
+      el = document.createElement("div");
+      el.className = "ladder-marker";
+      el.dataset.player = name;
+      el.innerHTML = `
         <span class="marker-dot"></span>
-        <span class="marker-label">${label}</span>
-      </div>
-    `;
-  }).join("");
+        <span class="marker-label"></span>
+      `;
+      wrap.appendChild(el);
+    }
 
-  host.innerHTML = `
-    <div class="ladder-head">
-      <div class="ladder-title">Classement live</div>
-    </div>
+    el.classList.toggle("is-leader", name === leader);
+    el.classList.toggle("is-me", !!r.__isMe);
 
-    <div class="ladder-track" role="img" aria-label="Progression des joueurs">
-      <div class="ladder-track-fill" style="width:${total ? (Math.max(...rows.map(r => (r.found_count ?? 0))) / total) * 100 : 0}%"></div>
-      <div class="ladder-tick is-0">0</div>
-      <div class="ladder-tick is-max">${total}</div>
-      ${markersHtml}
-    </div>
-  `;
+    el.style.setProperty("--player-color", color);
+    el.style.setProperty("--player-rgb", rgb);
+    el.style.left = `${pct}%`;
+
+    const labelEl = el.querySelector(".marker-label");
+    if (labelEl) labelEl.textContent = name;
+
+    el.title = `${name} · ${count}/${total}${name === leader ? " (Leader)" : ""}`;
+
+    existing.delete(name);
+  }
+
+  // 4) Supprime ceux qui ne sont plus affichés
+  for (const el of existing.values()) el.remove();
 }
+
 
 
   // ====== Events ======
