@@ -68,6 +68,7 @@ const globalRankingEl = document.getElementById("global-ranking");
 
   // ====== Multiplayer UI state ======
   const othersState = {}; // player_name -> row
+  const lastLadderCount = {}; // player_name -> last found_count
   let realtimeChannel = null;
 
 const lastFoundCount = {}; // player_name -> number
@@ -992,6 +993,14 @@ function renderLiveLadder() {
     host.dataset.ready = "1";
   }
 
+  if (!host.dataset.revealed) {
+  host.classList.remove("ladder-enter");
+  void host.offsetWidth; // rejoue l'anim proprement
+  host.classList.add("ladder-enter");
+  host.dataset.revealed = "1";
+}
+
+
   const fill = host.querySelector(".ladder-track-fill");
   const tickMax = host.querySelector(".ladder-tick.is-max");
   const wrap = host.querySelector(".ladder-markers");
@@ -1001,6 +1010,12 @@ function renderLiveLadder() {
 
   // Fill = position du meilleur (très subtil)
   const maxFound = rows.length ? Math.max(...rows.map(r => (r.found_count ?? 0))) : 0;
+  if (maxFound === 0 && (found?.size ?? 0) === 0) {
+  host.innerHTML = "";
+  host.dataset.ready = "";
+  host.dataset.revealed = "";
+  return;
+}
   const fillPct = total ? (maxFound / total) * 100 : 0;
   if (fill) fill.style.width = `${fillPct}%`;
 
@@ -1013,6 +1028,20 @@ function renderLiveLadder() {
   for (const r of rows) {
     const name = r.player_name;
     const count = Math.max(0, Math.min(total, r.found_count ?? 0));
+    const prev = lastLadderCount[name] ?? count;
+const progressed = count > prev;
+if (progressed && r.__isMe) {
+  const track = host.querySelector(".ladder-track");
+  if (track) {
+    track.style.setProperty("--me-rgb", rgb);  // rgb = "67, 102, 187" etc.
+    track.classList.remove("is-me-pulse");
+    void track.offsetWidth;
+    track.classList.add("is-me-pulse");
+    setTimeout(() => track.classList.remove("is-me-pulse"), 260);
+  }
+}
+lastLadderCount[name] = count;
+
 
     const rawPct = total > 0 ? (count / total) * 100 : 0;
     const pct = Math.max(4, Math.min(96, rawPct)); // évite les bords
@@ -1039,6 +1068,13 @@ function renderLiveLadder() {
     el.style.setProperty("--player-color", color);
     el.style.setProperty("--player-rgb", rgb);
     el.style.left = `${pct}%`;
+    if (progressed) {
+  el.classList.remove("is-bumped");
+  void el.offsetWidth; // force reflow pour rejouer l'anim
+  el.classList.add("is-bumped");
+  setTimeout(() => el.classList.remove("is-bumped"), 260);
+}
+
 
     const labelEl = el.querySelector(".marker-label");
     if (labelEl) labelEl.textContent = name;

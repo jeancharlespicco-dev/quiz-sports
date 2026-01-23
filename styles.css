@@ -915,9 +915,9 @@ body{
 
 .ladder-track{
   position: relative;
-  height: 70px;                 /* espace pour les labels au-dessus */
+  height: 80px;                 /* espace pour les labels au-dessus */
   background: rgba(255,255,255,0.55);
-  overflow: hidden;
+  overflow: visible;
 }
 
 /* la ligne (rail) */
@@ -930,6 +930,34 @@ body{
   height: 2px;
   border-radius: 999px;
   background: rgba(15,23,42,0.12);
+}
+
+.ladder-track::after{
+  content:"";
+  position:absolute;
+  inset: 0;
+  border-radius: 14px; /* ajuste si besoin */
+  pointer-events:none;
+  opacity: 0;
+  background: radial-gradient(
+    closest-side,
+    rgba(var(--me-rgb, 34,197,94), 0.10),
+    rgba(var(--me-rgb, 34,197,94), 0)
+  );
+}
+
+@keyframes railPulse {
+  0%{ opacity: 0; }
+  35%{ opacity: 1; }
+  100%{ opacity: 0; }
+}
+
+.ladder-track.is-me-pulse::after{
+  animation: railPulse 240ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce){
+  .ladder-track.is-me-pulse::after{ animation: none !important; }
 }
 
 /* option : petit "progress glow" du leader, très subtil */
@@ -993,7 +1021,7 @@ body{
   transform: translateX(-50%);
   font-weight: 850;
   font-size: 12px;
-  color: rgba(15,23,42,0.78);
+   color: rgba(15,23,42,0.82);
   padding: 4px 8px;
   border-radius: 999px;
   border: 1px solid rgba(15,23,42,0.10);
@@ -1034,9 +1062,10 @@ body{
   background: rgba(255,255,255,0.92);
 }
 .ladder-marker.is-leader .marker-dot{
-  box-shadow: 0 0 0 3px rgba(255,255,255,0.95),
-              0 0 0 7px rgba(var(--player-rgb, 34 197 94), 0.12),
-              0 10px 24px rgba(15,23,42,0.12);
+  box-shadow:
+    0 0 0 3px rgba(255,255,255,0.95),
+    0 0 0 7px rgba(var(--player-rgb), 0.12),
+    0 10px 24px rgba(15,23,42,0.12);
 }
 
 /* Top3 lisible : rivalité “pro” */
@@ -1089,6 +1118,65 @@ body{
   .ladder-top{ grid-template-columns: 1fr; }
   .ladder-marker{ max-width: 70%; }
 }
+
+/* Par défaut : label en dessous */
+.ladder-marker .marker-label{
+  top: 12px;                 /* (comme tu as déjà) */
+}
+
+/* Moi : label au-dessus */
+.ladder-marker.is-me .marker-label{
+  top: auto;
+  bottom: 14px;              /* place au-dessus de la ligne */
+    font-weight: 900;
+  border-color: rgba(15,23,42,0.18);
+  background: rgba(255,255,255,0.92);
+}
+
+@keyframes bump {
+  0%{ transform: translateX(-50%) scale(1); }
+  40%{ transform: translateX(-50%) scale(1.06); }
+  100%{ transform: translateX(-50%) scale(1); }
+}
+.ladder-marker.is-bumped{
+  animation: bump 240ms ease-out;
+}
+
+.ladder-marker.is-me .marker-label,
+.ladder-marker.is-leader .marker-label{
+  color: var(--player-color);
+  font-weight: 800;
+}
+
+.ladder-marker.is-leader .marker-label{
+  color: color-mix(in srgb, var(--player-color) 85%, #000);
+}
+
+.ladder-marker:not(.is-me):not(.is-leader){
+  opacity: 0.78;
+}
+
+/* Etat caché (avant révélation) */
+#live-ladder{
+  overflow: visible;
+}
+
+/* Anim d'entrée */
+.ladder-enter{
+  animation: ladderEnter 260ms ease-out;
+}
+
+@keyframes ladderEnter{
+  from{ opacity: 0; transform: translateY(-6px); }
+  to{ opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce){
+  .ladder-enter{ animation: none !important; }
+}
+
+
+
 
 
 
