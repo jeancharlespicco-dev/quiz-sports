@@ -962,6 +962,8 @@ body{
     transform 420ms cubic-bezier(.22,.61,.36,1);
 }
 
+.ladder-markers{ position: absolute; inset: 0; }
+
 .ladder-marker .marker-dot{
   position: absolute;
   left: 50%;
