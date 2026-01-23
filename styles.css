@@ -350,7 +350,13 @@ body{
 
 @media (prefers-reduced-motion: reduce){
   *{ transition: none !important; }
+
+  /* Exception : ladder live (animation très légère, fonctionnelle) */
+  .ladder-marker{
+    transition: left 160ms linear !important;
+  }
 }
+
 
 .section-title{
   margin: 14px 0 8px;
@@ -962,7 +968,11 @@ body{
     transform 420ms cubic-bezier(.22,.61,.36,1);
 }
 
-.ladder-markers{ position: absolute; inset: 0; }
+.ladder-markers{
+  position: absolute;
+  inset: 0;
+}
+
 
 .ladder-marker .marker-dot{
   position: absolute;
