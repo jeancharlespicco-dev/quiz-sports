@@ -959,19 +959,34 @@ function renderLiveLadder() {
   const host = document.getElementById("live-ladder");
   if (!host || !quiz) return;
   // Masque la grille des autres joueurs (redondante avec le ladder)
-if (othersEl) othersEl.style.display = "none";
+
 
 
   const total = quiz.items.length;
   const rows = getActiveRowsForLadder();
+  const isInit = !host.hasChildNodes();
 
   // si personne n'a commencé ET toi non plus (cas rare), tu peux choisir de masquer
   // Ici: on affiche quand même si toi tu es là, pour donner une "scène" stable.
   if (!currentPlayer) {
-    const isInit = !host.hasChildNodes();
-    host.innerHTML = "";
+
+  host.innerHTML = `
+  <div class="ladder-head">
+    <div class="ladder-title">Classement live</div>
+  </div>
+
+  <div class="ladder-track" role="img" aria-label="Progression des joueurs">
+    <div class="ladder-track-fill"></div>
+    <div class="ladder-tick is-0">0</div>
+    <div class="ladder-tick is-max">${total}</div>
+    <div class="ladder-markers"></div>
+  </div>
+`;
+
     return;
   }
+
+  if (othersEl) othersEl.style.display = "none";
 
   // tri par progression (desc), puis finished_at si tu veux
   rows.sort((a, b) => {
