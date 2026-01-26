@@ -496,17 +496,22 @@ function checkAnswer(value) {
   // ====== Load quiz ======
 async function loadQuiz() {
   try {
-    const res = await fetch("quizzes/current.json", { cache: "no-store" });
+    const base = window.location.pathname.includes("/index.html")
+  ? window.location.pathname.replace(/index\.html$/, "")
+  : window.location.pathname.replace(/\/$/, "") + "/";
+
+const res = await fetch(base + "quizzes/current3.json", { cache: "no-store" });
+
 
     if (!res.ok) {
-      throw new Error("current.json introuvable");
+      throw new Error("current3.json introuvable");
     }
 
     const data = await res.json();
 
     // Garde-fou structure
     if (!data.items || !Array.isArray(data.items)) {
-      throw new Error("current.json invalide (clé items manquante)");
+      throw new Error("current3.json invalide (clé items manquante)");
     }
 
     quiz = data;
@@ -540,7 +545,7 @@ fetchWinner();
     console.error("[Quiz] Load failed:", e);
 
     titleEl.textContent = "Quiz introuvable";
-    promptEl.textContent = "Impossible de charger quizzes/current.json.";
+    promptEl.textContent = "Impossible de charger quizzes/current3.json.";
     if (input) input.disabled = true;
   }
 }
