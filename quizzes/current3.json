@@ -1,0 +1,122 @@
+{
+  "id": "current",
+  "title": "Équipe de France – Coupe du Monde 2018",
+  "prompt": "Tape les joueurs de l'équipe de France champions du monde en 2018",
+  "items": [
+    {
+      "answer": "Hugo Lloris",
+      "aliases": ["hugo lloris", "lloris"],
+      "hints": ["Gardien", "Capitaine", "Tottenham"]
+    },
+    {
+      "answer": "Steve Mandanda",
+      "aliases": ["steve mandanda", "mandanda"],
+      "hints": ["Gardien", "OM", "Numéro 2"]
+    },
+    {
+      "answer": "Alphonse Areola",
+      "aliases": ["alphonse areola", "areola"],
+      "hints": ["Gardien", "PSG", "Troisième gardien"]
+    },
+    {
+      "answer": "Benjamin Pavard",
+      "aliases": ["benjamin pavard", "pavard"],
+      "hints": ["Défenseur", "But mythique contre l’Argentine", "Stuttgart"]
+    },
+    {
+      "answer": "Raphaël Varane",
+      "aliases": ["raphael varane", "varane"],
+      "hints": ["Défenseur central", "Real Madrid", "Expérience"]
+    },
+    {
+      "answer": "Samuel Umtiti",
+      "aliases": ["samuel umtiti", "umtiti"],
+      "hints": ["Défenseur central", "But en demi-finale", "FC Barcelone"]
+    },
+    {
+      "answer": "Presnel Kimpembe",
+      "aliases": ["presnel kimpembe", "kimpembe"],
+      "hints": ["Défenseur", "PSG", "Jeune du groupe"]
+    },
+    {
+      "answer": "Lucas Hernandez",
+      "aliases": ["lucas hernandez", "hernandez"],
+      "hints": ["Latéral gauche", "Atletico Madrid", "Titulaire surprise"]
+    },
+    {
+      "answer": "Djibril Sidibé",
+      "aliases": ["djibril sidibe", "sidibe"],
+      "hints": ["Latéral droit", "AS Monaco", "Polyvalent"]
+    },
+    {
+      "answer": "N'Golo Kanté",
+      "aliases": ["ngolo kante", "kante"],
+      "hints": ["Milieu défensif", "Chelsea", "Inépuisable"]
+    },
+    {
+      "answer": "Paul Pogba",
+      "aliases": ["paul pogba", "pogba"],
+      "hints": ["Milieu", "But en finale", "Manchester United"]
+    },
+    {
+      "answer": "Blaise Matuidi",
+      "aliases": ["blaise matuidi", "matuidi"],
+      "hints": ["Milieu", "Volume de jeu", "Juventus"]
+    },
+    {
+      "answer": "Corentin Tolisso",
+      "aliases": ["corentin tolisso", "tolisso"],
+      "hints": ["Milieu", "Bayern Munich", "Rotation"]
+    },
+    {
+      "answer": "Steven Nzonzi",
+      "aliases": ["steven nzonzi", "nzonzi"],
+      "hints": ["Milieu", "Séville", "Finale"]
+    },
+    {
+      "answer": "Nabil Fekir",
+      "aliases": ["nabil fekir", "fekir"],
+      "hints": ["Milieu offensif", "OL", "Créatif"]
+    },
+    {
+      "answer": "Antoine Griezmann",
+      "aliases": ["antoine griezmann", "griezmann"],
+      "hints": ["Attaquant", "MVP de la finale", "Atletico Madrid"]
+    },
+    {
+      "answer": "Kylian Mbappé",
+      "aliases": ["kylian mbappe", "mbappe"],
+      "hints": ["Attaquant", "19 ans", "Doublé en finale"]
+    },
+    {
+      "answer": "Olivier Giroud",
+      "aliases": ["olivier giroud", "giroud"],
+      "hints": ["Attaquant", "Jeu dos au but", "Chelsea"]
+    },
+    {
+      "answer": "Ousmane Dembélé",
+      "aliases": ["ousmane dembele", "dembele"],
+      "hints": ["Ailier", "FC Barcelone", "Vitesse"]
+    },
+    {
+      "answer": "Thomas Lemar",
+      "aliases": ["thomas lemar", "lemar"],
+      "hints": ["Ailier", "AS Monaco", "Pied gauche"]
+    },
+    {
+      "answer": "Florian Thauvin",
+      "aliases": ["florian thauvin", "thauvin"],
+      "hints": ["Ailier", "OM", "Remplaçant"]
+    },
+    {
+      "answer": "Adil Rami",
+      "aliases": ["adil rami", "rami"],
+      "hints": ["Défenseur", "OM", "Expérience"]
+    },
+    {
+      "answer": "Benjamin Mendy",
+      "aliases": ["benjamin mendy", "mendy"],
+      "hints": ["Latéral gauche", "Manchester City", "Blessé"]
+    }
+  ]
+}
