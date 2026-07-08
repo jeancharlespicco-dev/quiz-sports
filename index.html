@@ -47,7 +47,7 @@
         <span class="home-nav-icon">📅</span>
         <span>Historique</span>
       </button>
-      <button class="home-nav-btn home-nav-btn--disabled" type="button" title="Bientôt disponible">
+      <button class="home-nav-btn" id="home-profile-btn" type="button">
         <span class="home-nav-icon">👤</span>
         <span>Profil</span>
       </button>
@@ -134,6 +134,45 @@
   </div>
 </div>
 
+
+  <!-- Écran Profil -->
+  <div class="container hidden" id="screen-profile">
+    <div class="topline">
+      <h1 class="title" style="margin:0;">Profil</h1>
+      <div class="top-actions">
+        <button class="ghost-btn" id="back-from-profile-btn" type="button">Retour</button>
+      </div>
+    </div>
+
+    <!-- Sélecteur de joueur -->
+    <div class="profile-player-selector" id="profile-player-selector"></div>
+
+    <!-- Carte stats -->
+    <div class="profile-stats-grid" id="profile-stats-grid">
+      <div class="profile-stat-card">
+        <div class="profile-stat-value" id="prof-points">—</div>
+        <div class="profile-stat-label">Points</div>
+      </div>
+      <div class="profile-stat-card">
+        <div class="profile-stat-value" id="prof-played">—</div>
+        <div class="profile-stat-label">Quiz joués</div>
+      </div>
+      <div class="profile-stat-card">
+        <div class="profile-stat-value" id="prof-wins">—</div>
+        <div class="profile-stat-label">Victoires</div>
+      </div>
+      <div class="profile-stat-card">
+        <div class="profile-stat-value" id="prof-best">—</div>
+        <div class="profile-stat-label">Meilleur rang</div>
+      </div>
+    </div>
+
+    <!-- Historique récent -->
+    <div class="stats-section">
+      <h2 class="section-h2">Historique récent</h2>
+      <div id="profile-history" class="profile-history"></div>
+    </div>
+  </div>
 
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script src="app.js?v=20260123-4"></script>

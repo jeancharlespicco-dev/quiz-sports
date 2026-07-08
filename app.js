@@ -41,7 +41,8 @@ const ALLOWED_PLAYERS = new Set(PLAYERS.map(p => p.name));
   const othersEl = document.getElementById("others");
 
   const screenStats = document.getElementById("screen-stats");
-const screenHome  = document.getElementById("screen-home");
+const screenHome    = document.getElementById("screen-home");
+const screenProfile = document.getElementById("screen-profile");
 const statsBtn = document.getElementById("stats-btn");
 const backToGameBtn = document.getElementById("back-to-game-btn");
 
@@ -297,15 +298,17 @@ hintsCostTotal = Number.isFinite(data.hintsCostTotal) ? data.hintsCostTotal : 0;
 
   // ====== Screens ======
 function showScreen(which) {
-  if (screenHome)   screenHome.classList.add("hidden");
-  if (screenPlayer) screenPlayer.classList.add("hidden");
-  if (screenGame)   screenGame.classList.add("hidden");
-  if (screenStats)  screenStats.classList.add("hidden");
+  if (screenHome)    screenHome.classList.add("hidden");
+  if (screenPlayer)  screenPlayer.classList.add("hidden");
+  if (screenGame)    screenGame.classList.add("hidden");
+  if (screenStats)   screenStats.classList.add("hidden");
+  if (screenProfile) screenProfile.classList.add("hidden");
 
-  if (which === "home")   screenHome?.classList.remove("hidden");
-  if (which === "player") screenPlayer?.classList.remove("hidden");
-  if (which === "game")   screenGame?.classList.remove("hidden");
-  if (which === "stats")  screenStats?.classList.remove("hidden");
+  if (which === "home")    screenHome?.classList.remove("hidden");
+  if (which === "player")  screenPlayer?.classList.remove("hidden");
+  if (which === "game")    screenGame?.classList.remove("hidden");
+  if (which === "stats")   screenStats?.classList.remove("hidden");
+  if (which === "profile") screenProfile?.classList.remove("hidden");
 }
 
 function runSplashIntro() {
@@ -1257,6 +1260,135 @@ if (!alreadyFound && used < hints.length) {
   // Bouton "Changer de joueur" ramène à la Home
   // (on surcharge le clearPlayer existant)
   const _origClearPlayer = clearPlayer;
+
+  // ====== Profil ======
+  let profilePlayer = null; // joueur affiché dans le profil
+
+  async function showProfile(playerName) {
+    profilePlayer = playerName || currentPlayer || PLAYERS[0]?.name;
+    showScreen("profile");
+    renderProfileSelector();
+    await loadProfileData(profilePlayer);
+  }
+
+  function renderProfileSelector() {
+    const el = document.getElementById("profile-player-selector");
+    if (!el) return;
+    el.innerHTML = "";
+    PLAYERS.forEach(p => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "profile-player-btn" + (p.name === profilePlayer ? " is-active" : "");
+      btn.style.setProperty("--player-color", p.color || "#4366BB");
+      btn.innerHTML = `<span class="dot"></span><span>${p.name}</span>`;
+      btn.addEventListener("click", async () => {
+        profilePlayer = p.name;
+        renderProfileSelector();
+        await loadProfileData(p.name);
+      });
+      el.appendChild(btn);
+    });
+  }
+
+  async function loadProfileData(playerName) {
+    // Reset
+    ["prof-points", "prof-played", "prof-wins", "prof-best"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = "…";
+    });
+    const histEl = document.getElementById("profile-history");
+    if (histEl) histEl.innerHTML = '<div class="profile-history-empty">Chargement…</div>';
+
+    if (!supabase) return;
+
+    // Stats globales depuis v_player_stats
+    const { data: stats } = await supabase
+      .from("v_player_stats")
+      .select("total_points, wins, quizzes_finished")
+      .eq("player_name", playerName)
+      .maybeSingle();
+
+    const pointsEl = document.getElementById("prof-points");
+    const playedEl = document.getElementById("prof-played");
+    const winsEl   = document.getElementById("prof-wins");
+
+    if (stats) {
+      if (pointsEl) pointsEl.textContent = stats.total_points ?? 0;
+      if (playedEl) playedEl.textContent = stats.quizzes_finished ?? 0;
+      if (winsEl)   winsEl.textContent   = stats.wins ?? 0;
+    } else {
+      if (pointsEl) pointsEl.textContent = "0";
+      if (playedEl) playedEl.textContent = "0";
+      if (winsEl)   winsEl.textContent   = "0";
+    }
+
+    // Meilleur rang depuis quiz_results
+    const { data: results } = await supabase
+      .from("quiz_results")
+      .select("quiz_id, rank, points, finished_at")
+      .eq("player_name", playerName)
+      .order("finished_at", { ascending: false })
+      .limit(10);
+
+    const bestEl = document.getElementById("prof-best");
+    if (results && results.length > 0) {
+      const bestRank = Math.min(...results.map(r => r.rank));
+      if (bestEl) bestEl.textContent = `#${bestRank}`;
+    } else {
+      if (bestEl) bestEl.textContent = "—";
+    }
+
+    // Historique récent
+    if (histEl) {
+      if (!results || results.length === 0) {
+        histEl.innerHTML = '<div class="profile-history-empty">Aucun quiz terminé pour l'instant.</div>';
+        return;
+      }
+
+      // Récupérer les titres des quiz correspondants
+      const quizIds = [...new Set(results.map(r => r.quiz_id))];
+      const { data: quizzesData } = await supabase
+        .from("quizzes")
+        .select("slug, title")
+        .in("slug", quizIds);
+
+      const titleMap = {};
+      (quizzesData || []).forEach(q => { titleMap[q.slug] = q.title; });
+
+      histEl.innerHTML = "";
+      results.forEach(r => {
+        const row = document.createElement("div");
+        row.className = "profile-history-row";
+        const date = r.finished_at
+          ? new Date(r.finished_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })
+          : "—";
+        const title = titleMap[r.quiz_id] || r.quiz_id;
+        row.innerHTML = `
+          <div class="profile-history-info">
+            <div class="profile-history-title">${title}</div>
+            <div class="profile-history-date">${date}</div>
+          </div>
+          <div class="profile-history-right">
+            <span class="profile-rank">#${r.rank}</span>
+            <span class="profile-pts">+${r.points} pts</span>
+          </div>
+        `;
+        histEl.appendChild(row);
+      });
+    }
+  }
+
+  // Bouton Profil sur la Home
+  const homeProfileBtn = document.getElementById("home-profile-btn");
+  if (homeProfileBtn) {
+    homeProfileBtn.addEventListener("click", () => showProfile(currentPlayer));
+  }
+
+  // Retour depuis le profil
+  const backFromProfileBtn = document.getElementById("back-from-profile-btn");
+  if (backFromProfileBtn) {
+    backFromProfileBtn.addEventListener("click", () => showScreen("home"));
+  }
 
   // Bouton "Changer de joueur" sur la Home
   const homeChangeBtn = document.getElementById("home-change-btn");
