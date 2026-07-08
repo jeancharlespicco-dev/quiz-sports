@@ -17,8 +17,8 @@ const ALLOWED_PLAYERS = new Set(PLAYERS.map(p => p.name));
 
 
   // ====== Supabase (à remplir) ======
-  const SUPABASE_URL = "https://nkhrrigusnkufpfpotoz.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5raHJyaWd1c25rdWZwZnBvdG96Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0ODE3NzIsImV4cCI6MjA4NDA1Nzc3Mn0.2ujvv_IQMgvTeVsmwUtHZTie_q-XST1ULfSd4ZGgHRA";
+  const SUPABASE_URL = "https://fsuyhrzllhfeomvdbfcp.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdXlocnpsbGhmZW9tdmRiZmNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MTcwOTUsImV4cCI6MjA5OTA5MzA5NX0.TmPZff6fCdhG1hWJA3Fc0kLTsi7wRwxj_lkp9SkiIOg";
 
   // ====== DOM ======
   const screenPlayer = document.getElementById("screen-player");
