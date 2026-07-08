@@ -1186,38 +1186,44 @@ if (!alreadyFound && used < hints.length) {
 
 
   // ====== Home screen ======
-  async function initHome() {
-    // Charger le quiz pour afficher le titre sur la Home
-    const { data } = await (supabase
-      ? supabase.from("quizzes").select("slug, title, prompt, items").eq("status", "current").maybeSingle()
-      : Promise.resolve({ data: null }));
-
-    const titleEl2 = document.getElementById("home-quiz-title");
+  function renderHome() {
+    const titleEl2  = document.getElementById("home-quiz-title");
     const promptEl2 = document.getElementById("home-quiz-prompt");
-    const metaEl = document.getElementById("home-quiz-meta");
-    const hintEl = document.getElementById("home-player-hint");
+    const metaEl    = document.getElementById("home-quiz-meta");
+    const hintEl    = document.getElementById("home-player-hint");
     const playLabel = document.getElementById("home-play-label");
+    const changeBtn = document.getElementById("home-change-btn");
 
-    if (data) {
-      if (titleEl2) titleEl2.textContent = data.title || "Quiz en cours";
-      if (promptEl2) promptEl2.textContent = data.prompt || "";
-      const count = Array.isArray(data.items) ? data.items.length : 0;
+    // Infos du quiz (quiz est déjà chargé par loadQuiz)
+    if (quiz) {
+      if (titleEl2)  titleEl2.textContent  = quiz.title  || "Quiz en cours";
+      if (promptEl2) promptEl2.textContent = quiz.prompt || "";
+      const count = Array.isArray(quiz.items) ? quiz.items.length : 0;
       if (metaEl) metaEl.textContent = `${count} réponse${count > 1 ? "s" : ""} à trouver`;
     } else {
-      if (titleEl2) titleEl2.textContent = "Aucun quiz en cours";
+      if (titleEl2)  titleEl2.textContent  = "Aucun quiz en cours";
       if (promptEl2) promptEl2.textContent = "";
+      if (metaEl)    metaEl.textContent    = "";
     }
 
-    // Personnalise le bouton selon si le joueur est déjà connu
-    const saved = localStorage.getItem("dq_player");
+    // Personnalise selon si le joueur est déjà connu
+    const saved  = localStorage.getItem("dq_player");
     const exists = PLAYERS.some(p => p.name === saved);
     if (saved && exists) {
       if (playLabel) playLabel.textContent = `Jouer en tant que ${saved}`;
-      if (hintEl) hintEl.textContent = `Connecté en tant que ${saved} · Ce choix est mémorisé sur ce navigateur`;
+      if (hintEl)    hintEl.textContent    = `Connecté en tant que ${saved}`;
+      if (changeBtn) changeBtn.style.display = "inline-flex";
     } else {
       if (playLabel) playLabel.textContent = "Jouer";
-      if (hintEl) hintEl.textContent = "Tu seras invité à choisir ton nom";
+      if (hintEl)    hintEl.textContent    = "Tu seras invité à choisir ton nom";
+      if (changeBtn) changeBtn.style.display = "none";
     }
+  }
+
+  async function initHome() {
+    // loadQuiz() est lancé en parallèle au boot — on attend qu'il soit fini
+    // puis on affiche les infos
+    renderHome();
   }
 
   // Bouton Jouer
@@ -1252,12 +1258,21 @@ if (!alreadyFound && used < hints.length) {
   // (on surcharge le clearPlayer existant)
   const _origClearPlayer = clearPlayer;
 
+  // Bouton "Changer de joueur" sur la Home
+  const homeChangeBtn = document.getElementById("home-change-btn");
+  if (homeChangeBtn) {
+    homeChangeBtn.addEventListener("click", () => {
+      localStorage.removeItem("dq_player");
+      localStorage.removeItem("dq_player_color");
+      showScreen("player");
+    });
+  }
+
   // ====== Boot ======
   runSplashIntro();
   renderPlayers();
-  loadQuiz();
-
-  // Toujours démarrer sur la Home
   showScreen("home");
-  initHome();
+
+  // Charge le quiz puis met à jour la Home
+  loadQuiz().then(() => renderHome());
 })();
