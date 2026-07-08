@@ -77,13 +77,9 @@ const lastFoundCount = {}; // player_name -> number
 
 
   // ====== State ======
-  let hintsCostTotal = 0;
-  let pendingHint = null; // { answer, expiresAt }
-  let quiz = null;
+    let quiz = null;
   let found = new Set();
   let currentPlayer = null;
-  let hintsUsedByAnswer = {}; // { "Paris SG": 1, ... }
-let hintsUsedTotal = 0;
 
 
 let winner = null; // { player_name, finished_at }
@@ -203,10 +199,6 @@ function hexToRgbTriplet(hex) {
   return `${r}, ${g}, ${b}`; // ex: "67, 102, 187"
 }
 
-function hintPenaltyForNthHint(n) {
-  // n = 1,2,3… (indice débloqué n°n sur une question)
-  return n; // 1->1pt, 2->2pts, 3->3pts (progressif)
-}
 
 
 function ensureToast() {
@@ -259,9 +251,6 @@ function showToast(msg) {
     const key = storageKey(getQuizId(), currentPlayer);
     const payload = {
   foundAnswers: Array.from(found),
-  hintsUsedByAnswer: hintsUsedByAnswer || {},
-  hintsUsedTotal: hintsUsedTotal || 0,
-  hintsCostTotal: hintsCostTotal || 0,
   savedAt: Date.now()
 };
 
@@ -284,12 +273,6 @@ function showToast(msg) {
         if (answersSet.has(a)) valid.add(a);
       }
       found = valid;
-      hintsUsedByAnswer = (data.hintsUsedByAnswer && typeof data.hintsUsedByAnswer === "object")
-  ? data.hintsUsedByAnswer
-  : {};
-
-hintsUsedTotal = Number.isFinite(data.hintsUsedTotal) ? data.hintsUsedTotal : 0;
-hintsCostTotal = Number.isFinite(data.hintsCostTotal) ? data.hintsCostTotal : 0;
 
     } catch {
       found = new Set();
@@ -423,18 +406,6 @@ function updateUI() {
       } else {
   li.textContent = "—";
   li.classList.add("is-missing");
-
-  const used = hintsUsedByAnswer[item.answer] || 0;
-  if (used > 0) {
-    li.classList.add("is-hinted");      // style léger
-    li.dataset.hintsUsed = String(used); // pour badge CSS si tu veux
-  }
-
-  // clickable seulement s'il y a des hints
-if (item.hints && item.hints.length > 0) {
-  li.classList.add("is-hintable");
-  li.title = "Cliquer pour débloquer un indice (coût: -1 puis -2 puis -3…)";
-}
 
 }
 
@@ -592,8 +563,6 @@ async function resetQuizForEveryone() {
   hideWinnerBanner();
   hideMyFinishCard();
 
-hintsUsedByAnswer = {};
-hintsUsedTotal = 0;
 
   // 4) UI
   updateUI();
@@ -659,8 +628,6 @@ async function resetQuiz() {
           player_name: currentPlayer,
           found_count: found.size,
           finished_at: finished ? new Date().toISOString() : null,
-          hints_used: hintsUsedTotal,
-          hints_cost: hintsCostTotal,
           updated_at: new Date().toISOString()
         });
     } catch (e) {
@@ -674,7 +641,7 @@ async function resetQuiz() {
 
   const { data, error } = await supabase
     .from("daily_presence")
-    .select("player_name, finished_at, hints_used, hints_cost")
+    .select("player_name, finished_at")
     .eq("quiz_id", quizId)
     .not("finished_at", "is", null)
     .order("finished_at", { ascending: true });
@@ -691,8 +658,7 @@ async function resetQuiz() {
   const rows = finished.map((r, idx) => {
   const rank = idx + 1;
   const rankPoints = pointsForRank(rank);
-  const hints = r.hints_cost ?? (r.hints_used ?? 0);
-  const finalPoints = Math.max(0, rankPoints - hints);
+  const finalPoints = rankPoints;
 
 
   return {
@@ -701,7 +667,6 @@ async function resetQuiz() {
     finished_at: r.finished_at,
     rank,
     rank_points: rankPoints,
-    hints_used: hints,
     points: finalPoints
   };
 });
@@ -1148,42 +1113,6 @@ if (listEl) {
 
     const item = quiz.items[idx];
     if (!item) return;
-
-    // si déjà trouvé : on peut (optionnel) afficher les indices déjà débloqués
-    const alreadyFound = found.has(item.answer);
-
-    const hints = item.hints || [];
-    if (hints.length === 0) return;
-
-const used = hintsUsedByAnswer[item.answer] || 0;
-
-// Débloque un nouvel indice
-if (!alreadyFound && used < hints.length) {
-  const newUsed = used + 1;
-  hintsUsedByAnswer[item.answer] = newUsed;
-
-  // coût progressif : 1er indice = -1, 2e = -2, etc.
-  const penalty = newUsed;
-  hintsUsedTotal += 1;
-  hintsCostTotal += penalty;
-
-  saveProgress();
-  ensurePresenceRow();
-
-  showToast(`💡 (-${penalty} pt) ${hints[newUsed - 1]}`);
-  renderList();
-  return;
-}
-
-
-    // Sinon : revoir à volonté (gratuit) -> on montre le dernier débloqué
-    const toShowIndex = Math.max(0, Math.min(used, hints.length) - 1);
-    if (used > 0) {
-      showToast(`💡 Indice : ${hints[toShowIndex]}`);
-    } else {
-      // Aucun indice débloqué mais item déjà trouvé (ou autre cas)
-      showToast("💡 Aucun indice débloqué pour cet item.");
-    }
   });
 }
 
