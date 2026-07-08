@@ -1456,3 +1456,5 @@ body{
 @media (max-width: 480px) {
   .profile-stats-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+.hint-btn, .hints-section { display: none !important; }
