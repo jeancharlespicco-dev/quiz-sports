@@ -1341,7 +1341,7 @@ if (!alreadyFound && used < hints.length) {
     // Historique récent
     if (histEl) {
       if (!results || results.length === 0) {
-        histEl.innerHTML = '<div class="profile-history-empty">Aucun quiz terminé pour l'instant.</div>';
+        histEl.innerHTML = '<div class="profile-history-empty">Aucun quiz terminé pour l\'instant.</div>';
         return;
       }
 
