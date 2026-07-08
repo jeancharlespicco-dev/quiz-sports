@@ -17,8 +17,8 @@ const ALLOWED_PLAYERS = new Set(PLAYERS.map(p => p.name));
 
 
   // ====== Supabase (à remplir) ======
-  const SUPABASE_URL = "https://fsuyhrzllhfeomvdbfcp.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdXlocnpsbGhmZW9tdmRiZmNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MTcwOTUsImV4cCI6MjA5OTA5MzA5NX0.TmPZff6fCdhG1hWJA3Fc0kLTsi7wRwxj_lkp9SkiIOg";
+  const SUPABASE_URL = "https://nkhrrigusnkufpfpotoz.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5raHJyaWd1c25rdWZwZnBvdG96Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0ODE3NzIsImV4cCI6MjA4NDA1Nzc3Mn0.2ujvv_IQMgvTeVsmwUtHZTie_q-XST1ULfSd4ZGgHRA";
 
   // ====== DOM ======
   const screenPlayer = document.getElementById("screen-player");
@@ -41,6 +41,7 @@ const ALLOWED_PLAYERS = new Set(PLAYERS.map(p => p.name));
   const othersEl = document.getElementById("others");
 
   const screenStats = document.getElementById("screen-stats");
+const screenHome  = document.getElementById("screen-home");
 const statsBtn = document.getElementById("stats-btn");
 const backToGameBtn = document.getElementById("back-to-game-btn");
 
@@ -296,13 +297,15 @@ hintsCostTotal = Number.isFinite(data.hintsCostTotal) ? data.hintsCostTotal : 0;
 
   // ====== Screens ======
 function showScreen(which) {
+  if (screenHome)   screenHome.classList.add("hidden");
   if (screenPlayer) screenPlayer.classList.add("hidden");
-  if (screenGame) screenGame.classList.add("hidden");
-  if (screenStats) screenStats.classList.add("hidden");
+  if (screenGame)   screenGame.classList.add("hidden");
+  if (screenStats)  screenStats.classList.add("hidden");
 
+  if (which === "home")   screenHome?.classList.remove("hidden");
   if (which === "player") screenPlayer?.classList.remove("hidden");
-  if (which === "game") screenGame?.classList.remove("hidden");
-  if (which === "stats") screenStats?.classList.remove("hidden");
+  if (which === "game")   screenGame?.classList.remove("hidden");
+  if (which === "stats")  screenStats?.classList.remove("hidden");
 }
 
 function runSplashIntro() {
@@ -496,32 +499,33 @@ function checkAnswer(value) {
   // ====== Load quiz ======
 async function loadQuiz() {
   try {
-    if (!supabase) throw new Error("Supabase non initialisé");
+    const base = window.location.pathname.includes("/index.html")
+  ? window.location.pathname.replace(/index\.html$/, "")
+  : window.location.pathname.replace(/\/$/, "") + "/";
 
-    const { data, error } = await supabase
-      .from("quizzes")
-      .select("id, slug, title, prompt, items")
-      .eq("status", "current")
-      .maybeSingle();
+const res = await fetch(base + "quizzes/current3.json", { cache: "no-store" });
 
-    if (error) throw new Error("Erreur Supabase : " + error.message);
-    if (!data) throw new Error("Aucun quiz avec status='current' trouvé");
+
+    if (!res.ok) {
+      throw new Error("current3.json introuvable");
+    }
+
+    const data = await res.json();
 
     // Garde-fou structure
     if (!data.items || !Array.isArray(data.items)) {
-      throw new Error("Quiz invalide (clé items manquante)");
+      throw new Error("current3.json invalide (clé items manquante)");
     }
 
-    // On utilise le slug comme quiz_id (stable, lisible, indépendant de la date)
-    quiz = { ...data, id: data.slug };
+    quiz = data;
 
     // UI
     titleEl.textContent = quiz.title || "Quiz";
     promptEl.textContent = quiz.prompt || "";
-    winner = null;
-    hideWinnerBanner();
-    hideMyFinishCard();
-    fetchWinner();
+winner = null;
+hideWinnerBanner();
+hideMyFinishCard();
+fetchWinner();
 
     found = new Set();
     if (currentPlayer) loadProgress();
@@ -544,7 +548,7 @@ async function loadQuiz() {
     console.error("[Quiz] Load failed:", e);
 
     titleEl.textContent = "Quiz introuvable";
-    promptEl.textContent = "Impossible de charger le quiz depuis la base de données.";
+    promptEl.textContent = "Impossible de charger quizzes/current3.json.";
     if (input) input.disabled = true;
   }
 }
@@ -1181,20 +1185,79 @@ if (!alreadyFound && used < hints.length) {
 }
 
 
+  // ====== Home screen ======
+  async function initHome() {
+    // Charger le quiz pour afficher le titre sur la Home
+    const { data } = await (supabase
+      ? supabase.from("quizzes").select("slug, title, prompt, items").eq("status", "current").maybeSingle()
+      : Promise.resolve({ data: null }));
+
+    const titleEl2 = document.getElementById("home-quiz-title");
+    const promptEl2 = document.getElementById("home-quiz-prompt");
+    const metaEl = document.getElementById("home-quiz-meta");
+    const hintEl = document.getElementById("home-player-hint");
+    const playLabel = document.getElementById("home-play-label");
+
+    if (data) {
+      if (titleEl2) titleEl2.textContent = data.title || "Quiz en cours";
+      if (promptEl2) promptEl2.textContent = data.prompt || "";
+      const count = Array.isArray(data.items) ? data.items.length : 0;
+      if (metaEl) metaEl.textContent = `${count} réponse${count > 1 ? "s" : ""} à trouver`;
+    } else {
+      if (titleEl2) titleEl2.textContent = "Aucun quiz en cours";
+      if (promptEl2) promptEl2.textContent = "";
+    }
+
+    // Personnalise le bouton selon si le joueur est déjà connu
+    const saved = localStorage.getItem("dq_player");
+    const exists = PLAYERS.some(p => p.name === saved);
+    if (saved && exists) {
+      if (playLabel) playLabel.textContent = `Jouer en tant que ${saved}`;
+      if (hintEl) hintEl.textContent = `Connecté en tant que ${saved} · Ce choix est mémorisé sur ce navigateur`;
+    } else {
+      if (playLabel) playLabel.textContent = "Jouer";
+      if (hintEl) hintEl.textContent = "Tu seras invité à choisir ton nom";
+    }
+  }
+
+  // Bouton Jouer
+  const homePlayBtn = document.getElementById("home-play-btn");
+  if (homePlayBtn) {
+    homePlayBtn.addEventListener("click", () => {
+      const saved = localStorage.getItem("dq_player");
+      const savedColor = localStorage.getItem("dq_player_color") || "";
+      const exists = PLAYERS.some(p => p.name === saved);
+      if (saved && exists) {
+        selectPlayer(saved, savedColor);
+      } else {
+        showScreen("player");
+      }
+    });
+  }
+
+  // Bouton Classement depuis la Home
+  const homeStatsBtn = document.getElementById("home-stats-btn");
+  if (homeStatsBtn) {
+    homeStatsBtn.addEventListener("click", async () => {
+      // Charger le quiz si pas encore chargé (pour les stats)
+      if (!quiz && supabase) await loadQuiz();
+      showScreen("stats");
+      await updateQuizResultsFromPresence();
+      await fetchAndRenderQuizRanking();
+      await fetchAndRenderGlobalRanking();
+    });
+  }
+
+  // Bouton "Changer de joueur" ramène à la Home
+  // (on surcharge le clearPlayer existant)
+  const _origClearPlayer = clearPlayer;
+
   // ====== Boot ======
   runSplashIntro();
-
   renderPlayers();
   loadQuiz();
-  
 
-  const saved = localStorage.getItem("dq_player");
-  const savedColor = localStorage.getItem("dq_player_color") || "";
-  const exists = PLAYERS.some(p => p.name === saved);
-
-  if (saved && exists) {
-    selectPlayer(saved, savedColor);
-  } else {
-    showScreen("player");
-  }
+  // Toujours démarrer sur la Home
+  showScreen("home");
+  initHome();
 })();

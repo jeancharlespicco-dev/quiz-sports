@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>Daily Quiz</title>
-  <link rel="stylesheet" href="styles.css?v=20260123-3" />
+  <link rel="stylesheet" href="styles.css?v=20260123-4" />
   <link rel="icon" href="assets/logos/icon-color.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,9 +20,44 @@
   </div>
 </div>
 
+  <!-- Écran Home -->
+  <div class="container hidden" id="screen-home">
+    <div class="home-header">
+      <img src="assets/logos/logo-homepage.svg" alt="Quiz Sports" class="logo-homepage" />
+    </div>
+
+    <div class="home-quiz-card" id="home-quiz-card">
+      <div class="home-quiz-label">Quiz en cours</div>
+      <div class="home-quiz-title" id="home-quiz-title">Chargement…</div>
+      <div class="home-quiz-prompt" id="home-quiz-prompt"></div>
+      <div class="home-quiz-meta" id="home-quiz-meta"></div>
+    </div>
+
+    <button class="home-play-btn" id="home-play-btn" type="button">
+      <span id="home-play-label">Jouer</span>
+      <span class="home-play-arrow">→</span>
+    </button>
+
+    <div class="home-nav">
+      <button class="home-nav-btn" id="home-stats-btn" type="button">
+        <span class="home-nav-icon">🏆</span>
+        <span>Classement</span>
+      </button>
+      <button class="home-nav-btn home-nav-btn--disabled" type="button" title="Bientôt disponible">
+        <span class="home-nav-icon">📅</span>
+        <span>Historique</span>
+      </button>
+      <button class="home-nav-btn home-nav-btn--disabled" type="button" title="Bientôt disponible">
+        <span class="home-nav-icon">👤</span>
+        <span>Profil</span>
+      </button>
+    </div>
+
+    <div class="hint" id="home-player-hint"></div>
+  </div>
 
   <!-- Écran sélection joueur -->
-  <div class="container" id="screen-player">
+  <div class="container hidden" id="screen-player">
    <img
   src="assets/logos/logo-homepage.svg"
   alt="Quiz Sports"
@@ -98,6 +133,6 @@
 
 
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-<script src="app.js?v=20260123-3"></script>
+<script src="app.js?v=20260123-4"></script>
 </body>
 </html>
