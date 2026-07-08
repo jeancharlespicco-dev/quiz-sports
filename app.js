@@ -17,8 +17,8 @@ const ALLOWED_PLAYERS = new Set(PLAYERS.map(p => p.name));
 
 
   // ====== Supabase (à remplir) ======
-  const SUPABASE_URL = "https://nkhrrigusnkufpfpotoz.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5raHJyaWd1c25rdWZwZnBvdG96Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0ODE3NzIsImV4cCI6MjA4NDA1Nzc3Mn0.2ujvv_IQMgvTeVsmwUtHZTie_q-XST1ULfSd4ZGgHRA";
+  const SUPABASE_URL = "https://fsuyhrzllhfeomvdbfcp.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdXlocnpsbGhmZW9tdmRiZmNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MTcwOTUsImV4cCI6MjA5OTA5MzA5NX0.TmPZff6fCdhG1hWJA3Fc0kLTsi7wRwxj_lkp9SkiIOg";
 
   // ====== DOM ======
   const screenPlayer = document.getElementById("screen-player");
@@ -496,33 +496,32 @@ function checkAnswer(value) {
   // ====== Load quiz ======
 async function loadQuiz() {
   try {
-    const base = window.location.pathname.includes("/index.html")
-  ? window.location.pathname.replace(/index\.html$/, "")
-  : window.location.pathname.replace(/\/$/, "") + "/";
+    if (!supabase) throw new Error("Supabase non initialisé");
 
-const res = await fetch(base + "quizzes/current3.json", { cache: "no-store" });
+    const { data, error } = await supabase
+      .from("quizzes")
+      .select("id, slug, title, prompt, items")
+      .eq("status", "current")
+      .maybeSingle();
 
-
-    if (!res.ok) {
-      throw new Error("current3.json introuvable");
-    }
-
-    const data = await res.json();
+    if (error) throw new Error("Erreur Supabase : " + error.message);
+    if (!data) throw new Error("Aucun quiz avec status='current' trouvé");
 
     // Garde-fou structure
     if (!data.items || !Array.isArray(data.items)) {
-      throw new Error("current3.json invalide (clé items manquante)");
+      throw new Error("Quiz invalide (clé items manquante)");
     }
 
-    quiz = data;
+    // On utilise le slug comme quiz_id (stable, lisible, indépendant de la date)
+    quiz = { ...data, id: data.slug };
 
     // UI
     titleEl.textContent = quiz.title || "Quiz";
     promptEl.textContent = quiz.prompt || "";
-winner = null;
-hideWinnerBanner();
-hideMyFinishCard();
-fetchWinner();
+    winner = null;
+    hideWinnerBanner();
+    hideMyFinishCard();
+    fetchWinner();
 
     found = new Set();
     if (currentPlayer) loadProgress();
@@ -545,7 +544,7 @@ fetchWinner();
     console.error("[Quiz] Load failed:", e);
 
     titleEl.textContent = "Quiz introuvable";
-    promptEl.textContent = "Impossible de charger quizzes/current3.json.";
+    promptEl.textContent = "Impossible de charger le quiz depuis la base de données.";
     if (input) input.disabled = true;
   }
 }
