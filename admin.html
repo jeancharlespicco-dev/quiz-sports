@@ -518,7 +518,10 @@
       <!-- Items -->
       <div class="items-header">
         <h3>Réponses <span id="items-count" style="color:var(--blue);font-weight:900"></span></h3>
-        <button class="btn btn-ghost btn-sm" id="add-item-btn" type="button">+ Ajouter une réponse</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" id="import-json-btn" type="button">📋 Importer JSON</button>
+          <button class="btn btn-ghost btn-sm" id="add-item-btn" type="button">+ Ajouter une réponse</button>
+        </div>
       </div>
       <div class="item-list" id="item-list"></div>
 
@@ -544,6 +547,23 @@
 </div>
 
 <div id="toast"></div>
+
+<!-- Modale Import JSON -->
+<div id="import-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.45);z-index:1000;display:none;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:white;border-radius:18px;padding:24px;max-width:560px;width:100%;box-shadow:0 20px 60px rgba(15,23,42,0.2);">
+    <h3 style="font-size:16px;font-weight:800;margin-bottom:8px;">Importer depuis JSON</h3>
+    <p style="font-size:13px;color:rgba(15,23,42,0.55);margin-bottom:12px;">Colle un tableau JSON de réponses. Format attendu :</p>
+    <pre style="background:#F6F8FC;border:1px solid rgba(15,23,42,0.12);border-radius:10px;padding:12px;font-size:12px;margin-bottom:12px;overflow-x:auto;">[
+  { "answer": "Zinédine Zidane", "aliases": ["zidane", "zizou"] },
+  { "answer": "Thierry Henry", "aliases": ["henry"] }
+]</pre>
+    <textarea id="import-textarea" rows="10" style="width:100%;padding:10px 12px;font-family:monospace;font-size:13px;border:1px solid rgba(15,23,42,0.18);border-radius:10px;outline:none;resize:vertical;margin-bottom:12px;" placeholder="Colle ton JSON ici…"></textarea>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn btn-ghost" id="import-cancel-btn" type="button">Annuler</button>
+      <button class="btn btn-primary" id="import-confirm-btn" type="button">Importer</button>
+    </div>
+  </div>
+</div>
 
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script>
@@ -582,7 +602,62 @@
   const fPrompt      = document.getElementById("f-prompt");
   const itemListEl   = document.getElementById("item-list");
   const itemsCount   = document.getElementById("items-count");
-  const addItemBtn   = document.getElementById("add-item-btn");
+  const addItemBtn      = document.getElementById("add-item-btn");
+  const importJsonBtn   = document.getElementById("import-json-btn");
+  const importModal     = document.getElementById("import-modal");
+  const importTextarea  = document.getElementById("import-textarea");
+  const importCancelBtn = document.getElementById("import-cancel-btn");
+  const importConfirmBtn= document.getElementById("import-confirm-btn");
+
+  // Ouvrir la modale
+  if (importJsonBtn) {
+    importJsonBtn.addEventListener("click", () => {
+      importTextarea.value = "";
+      importModal.style.display = "flex";
+      setTimeout(() => importTextarea.focus(), 50);
+    });
+  }
+
+  // Fermer
+  if (importCancelBtn) {
+    importCancelBtn.addEventListener("click", () => {
+      importModal.style.display = "none";
+    });
+  }
+
+  // Fermer en cliquant hors de la modale
+  if (importModal) {
+    importModal.addEventListener("click", e => {
+      if (e.target === importModal) importModal.style.display = "none";
+    });
+  }
+
+  // Importer
+  if (importConfirmBtn) {
+    importConfirmBtn.addEventListener("click", () => {
+      try {
+        const raw = importTextarea.value.trim();
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) throw new Error("Le JSON doit être un tableau []");
+
+        const imported = parsed.map(it => ({
+          answer:  String(it.answer || "").trim(),
+          aliases: Array.isArray(it.aliases) ? it.aliases.map(a => String(a).trim()).filter(Boolean) : [],
+          hints:   Array.isArray(it.hints)   ? it.hints.map(h => String(h).trim()).filter(Boolean)   : [],
+        })).filter(it => it.answer);
+
+        if (imported.length === 0) throw new Error("Aucune réponse valide trouvée");
+
+        items = [...items, ...imported];
+        renderItems();
+        importModal.style.display = "none";
+        showToast(`✅ ${imported.length} réponse${imported.length > 1 ? "s" : ""} importée${imported.length > 1 ? "s" : ""} !`);
+
+      } catch(e) {
+        showToast("❌ JSON invalide : " + e.message, 4000);
+      }
+    });
+  }
 
   const previewBtn   = document.getElementById("preview-btn");
   const previewPanel = document.getElementById("preview-panel");
