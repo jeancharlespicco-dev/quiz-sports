@@ -473,33 +473,29 @@ function checkAnswer(value) {
   // ====== Load quiz ======
 async function loadQuiz() {
   try {
-    const base = window.location.pathname.includes("/index.html")
-  ? window.location.pathname.replace(/index\.html$/, "")
-  : window.location.pathname.replace(/\/$/, "") + "/";
+    if (!supabase) throw new Error("Supabase non initialisé");
 
-const res = await fetch(base + "quizzes/current3.json", { cache: "no-store" });
+    const { data, error } = await supabase
+      .from("quizzes")
+      .select("id, slug, title, prompt, items")
+      .eq("status", "current")
+      .maybeSingle();
 
+    if (error) throw new Error("Erreur Supabase : " + error.message);
+    if (!data) throw new Error("Aucun quiz avec status='current' trouvé");
 
-    if (!res.ok) {
-      throw new Error("current3.json introuvable");
-    }
-
-    const data = await res.json();
-
-    // Garde-fou structure
     if (!data.items || !Array.isArray(data.items)) {
-      throw new Error("current3.json invalide (clé items manquante)");
+      throw new Error("Quiz invalide (clé items manquante)");
     }
 
-    quiz = data;
+    quiz = { ...data, id: data.slug };
 
-    // UI
     titleEl.textContent = quiz.title || "Quiz";
     promptEl.textContent = quiz.prompt || "";
-winner = null;
-hideWinnerBanner();
-hideMyFinishCard();
-fetchWinner();
+    winner = null;
+    hideWinnerBanner();
+    hideMyFinishCard();
+    fetchWinner();
 
     found = new Set();
     if (currentPlayer) loadProgress();
@@ -520,9 +516,8 @@ fetchWinner();
 
   } catch (e) {
     console.error("[Quiz] Load failed:", e);
-
     titleEl.textContent = "Quiz introuvable";
-    promptEl.textContent = "Impossible de charger quizzes/current3.json.";
+    promptEl.textContent = "Impossible de charger le quiz depuis la base de données.";
     if (input) input.disabled = true;
   }
 }
