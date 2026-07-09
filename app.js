@@ -7,7 +7,7 @@
     { name: "JCP", color: "#4366BB" }, 
     { name: "LBL", color: "#EEA825" }, 
     { name: "MC", color: "#B68489" },  
-    { name: "MM", color: "#0F172A" },  
+    { name: "AM", color: "#0F172A" },  
     { name: "NG", color: "#15803D" },  
     { name: "TSP", color: "#73AFB9" },  
     { name: "XL", color: "#DB9411" },  
