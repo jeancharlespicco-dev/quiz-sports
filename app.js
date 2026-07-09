@@ -12,6 +12,7 @@
     { name: "TSP", color: "#73AFB9" },  
     { name: "XL", color: "#DB9411" },  
   ];
+  
 const PLAYER_COLOR = new Map(PLAYERS.map(p => [p.name, p.color]));
 const ALLOWED_PLAYERS = new Set(PLAYERS.map(p => p.name));
 
