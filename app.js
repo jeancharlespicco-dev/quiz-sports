@@ -140,16 +140,18 @@ function hideMyFinishCard(){
   el.innerHTML = "";
 }
 
-function showMyFinishCard(rank, points){
+function showMyFinishCard(rank){
   const el = document.getElementById("my-finish-card");
   if (!el) return;
 
+  const isWin = rank === 1;
+
   el.innerHTML = `
     <div class="left">
-      <div class="title">🎉 Terminé !</div>
+      <div class="title">${isWin ? "🏆 Victoire !" : "🎉 Terminé !"}</div>
       <div class="sub">Tu es arrivé #${rank}</div>
     </div>
-    <div class="right">+${points} pts</div>
+    ${isWin ? '<div class="right">🏆</div>' : ""}
   `;
   el.classList.remove("hidden");
 }
@@ -161,7 +163,7 @@ async function fetchMyResultAndShow(){
 
   const { data, error } = await supabase
     .from("quiz_results")
-    .select("rank, points")
+    .select("rank")
     .eq("quiz_id", quizId)
     .eq("player_name", currentPlayer)
     .maybeSingle();
@@ -172,7 +174,7 @@ async function fetchMyResultAndShow(){
   }
 
   if (!data) return;
-  showMyFinishCard(data.rank, data.points);
+  showMyFinishCard(data.rank);
 }
 
 
@@ -312,15 +314,6 @@ function runSplashIntro() {
     }, 360);
   }, total);
 }
-
-function pointsForRank(rank) {
-  // 1->10, 2->7, 3->5, 4->3, 5->2, 6+->1
-  const table = [10, 7, 5, 3, 2];
-  if (rank <= 0) return 0;
-  if (rank <= table.length) return table[rank - 1];
-  return 1;
-}
-
 
   // ====== Player selection ======
   function renderPlayers() {
@@ -650,23 +643,17 @@ async function resetQuiz() {
   const finished = data || [];
   if (finished.length === 0) return;
 
-  // upsert rank/points
-  const rows = finished.map((r, idx) => {
-  const rank = idx + 1;
-  const rankPoints = pointsForRank(rank);
-  const finalPoints = rankPoints;
-
-
-  return {
+  // upsert rank (le rang détermine le vainqueur : rank === 1 => win)
+  // rank_points / points conservés à 0 : colonnes gardées pour ne pas
+  // toucher au schéma, mais plus utilisées côté UI.
+  const rows = finished.map((r, idx) => ({
     quiz_id: quizId,
     player_name: r.player_name,
     finished_at: r.finished_at,
-    rank,
-    rank_points: rankPoints,
-    points: finalPoints
-  };
-});
-
+    rank: idx + 1,
+    rank_points: 0,
+    points: 0
+  }));
 
   const { error: upsertErr } = await supabase
     .from("quiz_results")
@@ -714,9 +701,10 @@ function renderRanking(el, rows, mode) {
     meta.className = "rank-meta";
 
     if (mode === "quiz") {
-      meta.textContent = `#${r.rank} · ${r.points} pts`;
+      meta.textContent = r.rank === 1 ? "🏆 Victoire" : `#${r.rank}`;
     } else {
-      meta.textContent = `${r.total_points} pts · ${r.wins} win`;
+      const winLabel = r.wins > 1 ? "wins" : "win";
+      meta.textContent = `${r.wins} ${winLabel} · ${r.quizzes_played} joués`;
     }
 
     card.appendChild(left);
@@ -731,7 +719,7 @@ async function fetchAndRenderQuizRanking() {
 
   const { data, error } = await supabase
     .from("quiz_results")
-    .select("player_name, rank, points")
+    .select("player_name, rank")
     .eq("quiz_id", quizId)
     .order("rank", { ascending: true });
 
@@ -748,8 +736,8 @@ async function fetchAndRenderGlobalRanking() {
 
   const { data, error } = await supabase
     .from("v_player_stats")
-    .select("player_name, total_points, wins, quizzes_finished")
-    .order("total_points", { ascending: false });
+    .select("player_name, wins, quizzes_played")
+    .order("wins", { ascending: false });
 
   if (error) {
     console.warn("[Stats] fetch global ranking failed", error);
@@ -1188,9 +1176,11 @@ if (listEl) {
 
   // ====== Profil ======
   let profilePlayer = null; // joueur affiché dans le profil
+  let profileOrigin = "home"; // écran vers lequel revenir depuis le profil
 
-  async function showProfile(playerName) {
+  async function showProfile(playerName, origin) {
     profilePlayer = playerName || currentPlayer || PLAYERS[0]?.name;
+    profileOrigin = origin === "game" ? "game" : "home";
     showScreen("profile");
     renderProfileSelector();
     await loadProfileData(profilePlayer);
@@ -1217,7 +1207,7 @@ if (listEl) {
 
   async function loadProfileData(playerName) {
     // Reset
-    ["prof-points", "prof-played", "prof-wins", "prof-best"].forEach(id => {
+    ["prof-played", "prof-wins", "prof-best"].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.textContent = "…";
     });
@@ -1229,20 +1219,17 @@ if (listEl) {
     // Stats globales depuis v_player_stats
     const { data: stats } = await supabase
       .from("v_player_stats")
-      .select("total_points, wins, quizzes_finished")
+      .select("wins, quizzes_played")
       .eq("player_name", playerName)
       .maybeSingle();
 
-    const pointsEl = document.getElementById("prof-points");
     const playedEl = document.getElementById("prof-played");
     const winsEl   = document.getElementById("prof-wins");
 
     if (stats) {
-      if (pointsEl) pointsEl.textContent = stats.total_points ?? 0;
-      if (playedEl) playedEl.textContent = stats.quizzes_finished ?? 0;
+      if (playedEl) playedEl.textContent = stats.quizzes_played ?? 0;
       if (winsEl)   winsEl.textContent   = stats.wins ?? 0;
     } else {
-      if (pointsEl) pointsEl.textContent = "0";
       if (playedEl) playedEl.textContent = "0";
       if (winsEl)   winsEl.textContent   = "0";
     }
@@ -1250,7 +1237,7 @@ if (listEl) {
     // Meilleur rang depuis quiz_results
     const { data: results } = await supabase
       .from("quiz_results")
-      .select("quiz_id, rank, points, finished_at")
+      .select("quiz_id, rank, finished_at")
       .eq("player_name", playerName)
       .order("finished_at", { ascending: false })
       .limit(10);
@@ -1288,14 +1275,17 @@ if (listEl) {
           ? new Date(r.finished_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })
           : "—";
         const title = titleMap[r.quiz_id] || r.quiz_id;
+        const rightBadge = r.rank === 1
+          ? '<span class="profile-badge-win">🏆 Victoire</span>'
+          : `<span class="profile-rank">#${r.rank}</span>`;
+
         row.innerHTML = `
           <div class="profile-history-info">
             <div class="profile-history-title">${title}</div>
             <div class="profile-history-date">${date}</div>
           </div>
           <div class="profile-history-right">
-            <span class="profile-rank">#${r.rank}</span>
-            <span class="profile-pts">+${r.points} pts</span>
+            ${rightBadge}
           </div>
         `;
         histEl.appendChild(row);
@@ -1306,13 +1296,28 @@ if (listEl) {
   // Bouton Profil sur la Home
   const homeProfileBtn = document.getElementById("home-profile-btn");
   if (homeProfileBtn) {
-    homeProfileBtn.addEventListener("click", () => showProfile(currentPlayer));
+    homeProfileBtn.addEventListener("click", () => showProfile(currentPlayer, "home"));
   }
 
-  // Retour depuis le profil
+  // Bouton Profil depuis le jeu
+  const profileBtn = document.getElementById("profile-btn");
+  if (profileBtn) {
+    profileBtn.addEventListener("click", () => showProfile(currentPlayer, "game"));
+  }
+
+  // Bouton Home depuis le jeu
+  const homeFromGameBtn = document.getElementById("home-from-game-btn");
+  if (homeFromGameBtn) {
+    homeFromGameBtn.addEventListener("click", () => {
+      showScreen("home");
+      renderHome();
+    });
+  }
+
+  // Retour depuis le profil : vers l'écran d'origine (jeu ou home)
   const backFromProfileBtn = document.getElementById("back-from-profile-btn");
   if (backFromProfileBtn) {
-    backFromProfileBtn.addEventListener("click", () => showScreen("home"));
+    backFromProfileBtn.addEventListener("click", () => showScreen(profileOrigin));
   }
 
   // Bouton "Changer de joueur" sur la Home

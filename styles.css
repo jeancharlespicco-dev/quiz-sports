@@ -1363,7 +1363,7 @@ body{
 /* Grille stats */
 .profile-stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
   margin-bottom: 20px;
 }
@@ -1453,6 +1453,15 @@ body{
   color: var(--primary-600);
 }
 
+.profile-badge-win {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--amber);
+  white-space: nowrap;
+}
+
 @media (max-width: 480px) {
-  .profile-stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .profile-stats-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .profile-stat-card { padding: 10px 6px; }
+  .profile-stat-value { font-size: 22px; }
 }
