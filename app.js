@@ -11,6 +11,7 @@
     { name: "NG", color: "#15803D" },  
     { name: "TSP", color: "#73AFB9" },  
     { name: "XL", color: "#DB9411" },  
+    { name: "NC", color: "#9D5D63" },
   ];
   
 const PLAYER_COLOR = new Map(PLAYERS.map(p => [p.name, p.color]));
