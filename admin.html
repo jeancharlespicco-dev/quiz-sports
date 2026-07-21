@@ -1135,7 +1135,7 @@
     try {
       const { error: presenceErr } = await sb
         .from("daily_presence")
-        .update({ found_count: 0, found_answers: [], finished_at: null })
+        .update({ found_count: 0, found_answers: [], finished_at: null, updated_at: new Date().toISOString() })
         .eq("quiz_id", q.slug);
       if (presenceErr) throw presenceErr;
 

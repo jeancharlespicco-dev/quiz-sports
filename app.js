@@ -10,8 +10,7 @@
     { name: "AM", color: "#0F172A" },  
     { name: "NG", color: "#15803D" },  
     { name: "TSP", color: "#73AFB9" },  
-    { name: "XL", color: "#DB9411" },
-    { name: "NC", color: "#9D5D63" },  
+    { name: "XL", color: "#DB9411" },  
   ];
   
 const PLAYER_COLOR = new Map(PLAYERS.map(p => [p.name, p.color]));
@@ -248,6 +247,38 @@ function showToast(msg) {
     return quiz?.id || getQuizParam() || getTodayId();
   }
 
+  // ====== Détection d'un reset côté admin ======
+  // Si le serveur a été remis à zéro APRÈS notre dernière sauvegarde locale
+  // (et affiche moins de réponses que ce qu'on a en local), on efface notre
+  // progression locale avant de la republier — sinon on écraserait le reset.
+  async function reconcileWithServerReset() {
+    if (!supabase || !quiz || !currentPlayer) return;
+
+    const quizId = getQuizId();
+    const key = storageKey(quizId, currentPlayer);
+    const raw = localStorage.getItem(key);
+    const localSavedAt = raw ? (JSON.parse(raw).savedAt || 0) : 0;
+
+    if (found.size === 0) return; // rien à perdre, rien à vérifier
+
+    const { data, error } = await supabase
+      .from("daily_presence")
+      .select("found_count, updated_at")
+      .eq("quiz_id", quizId)
+      .eq("player_name", currentPlayer)
+      .maybeSingle();
+
+    if (error || !data) return;
+
+    const serverUpdatedAt = data.updated_at ? new Date(data.updated_at).getTime() : 0;
+    const serverCount = data.found_count ?? 0;
+
+    if (serverUpdatedAt > localSavedAt && serverCount < found.size) {
+      localStorage.removeItem(key);
+      found = new Set();
+    }
+  }
+
   // ====== Local progress ======
   function saveProgress() {
     if (!quiz || !currentPlayer) return;
@@ -339,7 +370,7 @@ function runSplashIntro() {
     });
   }
 
-  function selectPlayer(name, color) {
+  async function selectPlayer(name, color) {
     currentPlayer = name;
     localStorage.setItem("dq_player", name);
     localStorage.setItem("dq_player_color", color || "");
@@ -350,6 +381,7 @@ function runSplashIntro() {
     showScreen("game");
 
     loadProgress();
+    await reconcileWithServerReset();
     updateUI();
     renderList();
     renderLiveLadder();
@@ -529,7 +561,10 @@ async function loadQuiz() {
     fetchWinner();
 
     found = new Set();
-    if (currentPlayer) loadProgress();
+    if (currentPlayer) {
+      loadProgress();
+      await reconcileWithServerReset();
+    }
 
     if (input) {
       input.disabled = false;
