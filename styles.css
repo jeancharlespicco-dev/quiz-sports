@@ -211,18 +211,30 @@ body{
   flex: 0 0 auto;
 }
 
-/* Heatmap : point discret indiquant que d'autres joueurs ont déjà trouvé
-   cette réponse. Survol = liste des joueurs (title natif). */
+/* Indice affiché à la place du "—" quand la réponse n'est pas encore
+   trouvée (ex: l'année pour "vainqueurs du maillot à pois") */
+#answers-list li.is-missing.has-hint{
+  font-style: italic;
+  color: rgba(15,23,42,0.5);
+}
+
+/* Heatmap : point indiquant si d'autres joueurs ont déjà trouvé cette
+   réponse. Survol = liste des joueurs (title natif), ou "Trouvé par
+   personne" si personne encore. */
 #answers-list li .heatmap-dot{
   margin-left: auto;
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: var(--blue-2);
-  opacity: 0.5;
+  background: rgba(15,23,42,0.18);
+  opacity: 0.6;
   flex: 0 0 auto;
   cursor: default;
-  transition: opacity .15s, transform .15s;
+  transition: opacity .15s, transform .15s, background .15s;
+}
+#answers-list li .heatmap-dot.has-found{
+  background: var(--blue-2);
+  opacity: 0.6;
 }
 #answers-list li .heatmap-dot:hover{
   opacity: 0.95;

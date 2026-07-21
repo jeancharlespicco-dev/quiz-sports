@@ -10,8 +10,7 @@
     { name: "AM", color: "#0F172A" },  
     { name: "NG", color: "#15803D" },  
     { name: "TSP", color: "#73AFB9" },  
-    { name: "XL", color: "#DB9411" },
-    { name: "NC", color: "#47858F" },
+    { name: "XL", color: "#DB9411" },  
   ];
   
 const PLAYER_COLOR = new Map(PLAYERS.map(p => [p.name, p.color]));
@@ -422,18 +421,23 @@ function updateUI() {
         li.textContent = item.answer;
         li.classList.add("found");
       } else {
-  li.textContent = "—";
+  const hint = Array.isArray(item.hints) && item.hints.length > 0 ? item.hints[0] : null;
+  li.textContent = hint || "—";
   li.classList.add("is-missing");
+  if (hint) li.classList.add("has-hint");
 
 }
 
       const foundBy = foundByMap.get(item.answer);
+      const dot = document.createElement("span");
+      dot.className = "heatmap-dot";
       if (foundBy && foundBy.size > 0) {
-        const dot = document.createElement("span");
-        dot.className = "heatmap-dot";
+        dot.classList.add("has-found");
         dot.title = `Trouvé par ${Array.from(foundBy).join(", ")}`;
-        li.appendChild(dot);
+      } else {
+        dot.title = "Trouvé par personne";
       }
+      li.appendChild(dot);
 
       listEl.appendChild(li);
     });
