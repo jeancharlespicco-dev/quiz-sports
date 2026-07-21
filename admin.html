@@ -565,6 +565,17 @@
   </div>
 </div>
 
+<div id="progress-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.45);z-index:1000;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:white;border-radius:18px;padding:24px;max-width:640px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(15,23,42,0.2);">
+    <h3 style="font-size:16px;font-weight:800;margin-bottom:4px;" id="progress-modal-title">Progression</h3>
+    <p style="font-size:13px;color:rgba(15,23,42,0.55);margin-bottom:16px;">Réponses qu'il manque à chaque joueur.</p>
+    <div id="progress-body">Chargement…</div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+      <button class="btn btn-ghost" id="progress-close-btn" type="button">Fermer</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script>
 (() => {
@@ -608,6 +619,20 @@
   const importTextarea  = document.getElementById("import-textarea");
   const importCancelBtn = document.getElementById("import-cancel-btn");
   const importConfirmBtn= document.getElementById("import-confirm-btn");
+
+  const progressModal      = document.getElementById("progress-modal");
+  const progressModalTitle = document.getElementById("progress-modal-title");
+  const progressBody       = document.getElementById("progress-body");
+  const progressCloseBtn   = document.getElementById("progress-close-btn");
+
+  if (progressCloseBtn) {
+    progressCloseBtn.addEventListener("click", () => { progressModal.style.display = "none"; });
+  }
+  if (progressModal) {
+    progressModal.addEventListener("click", e => {
+      if (e.target === progressModal) progressModal.style.display = "none";
+    });
+  }
 
   // Ouvrir la modale
   if (importJsonBtn) {
@@ -746,6 +771,10 @@
         <span class="status-pill ${q.status}">${labelStatus(q.status)}</span>
         <div class="quiz-row-actions">
           <button class="btn btn-ghost btn-sm" data-action="edit" data-id="${q.id}">✏️ Modifier</button>
+          ${q.status === "current"
+            ? `<button class="btn btn-ghost btn-sm" data-action="progress" data-id="${q.id}">👥 Progression</button>
+               <button class="btn btn-amber btn-sm" data-action="reset" data-id="${q.id}">↺ Reset</button>`
+            : ""}
           ${q.status !== "current"
             ? `<button class="btn btn-success btn-sm" data-action="publish" data-id="${q.id}">🚀 Publier</button>`
             : ""}
@@ -763,10 +792,12 @@
     quizListEl.querySelectorAll("[data-action]").forEach(btn => {
       btn.addEventListener("click", () => {
         const { action, id } = btn.dataset;
-        if (action === "edit")    openEditor(id);
-        if (action === "publish") publishQuiz(id);
-        if (action === "archive") archiveQuiz(id);
-        if (action === "delete")  deleteQuiz(id);
+        if (action === "edit")     openEditor(id);
+        if (action === "publish")  publishQuiz(id);
+        if (action === "archive")  archiveQuiz(id);
+        if (action === "delete")   deleteQuiz(id);
+        if (action === "progress") openProgress(id);
+        if (action === "reset")    resetQuizProgress(id);
       });
     });
   }
@@ -1034,6 +1065,87 @@
       showToast("🗑 Quiz supprimé.");
       if (editingId === id) closeEditor();
       await loadQuizzes();
+    } catch (e) {
+      showToast("❌ Erreur : " + e.message, 4000);
+    }
+  }
+
+  // ====== Progression (réponses manquantes par joueur) ======
+  async function openProgress(id) {
+    const q = quizzes.find(x => x.id === id);
+    if (!q) return;
+
+    progressModalTitle.textContent = `Progression — ${q.title}`;
+    progressBody.innerHTML = "Chargement…";
+    progressModal.style.display = "flex";
+
+    const { data, error } = await sb
+      .from("daily_presence")
+      .select("player_name, found_answers, finished_at")
+      .eq("quiz_id", q.slug);
+
+    if (error) {
+      progressBody.innerHTML = `<div style="color:var(--red)">Erreur : ${esc(error.message)}</div>`;
+      return;
+    }
+
+    const rows = data || [];
+    const allAnswers = (q.items || []).map(it => it.answer);
+
+    if (rows.length === 0) {
+      progressBody.innerHTML = '<div style="color:rgba(15,23,42,0.55);font-size:13px;">Personne n\'a encore commencé ce quiz.</div>';
+      return;
+    }
+
+    // Ceux qui ont fini d'abord, puis par nb de réponses trouvées décroissant
+    rows.sort((a, b) => {
+      const aFin = a.finished_at ? 1 : 0;
+      const bFin = b.finished_at ? 1 : 0;
+      if (aFin !== bFin) return bFin - aFin;
+      const aCount = Array.isArray(a.found_answers) ? a.found_answers.length : 0;
+      const bCount = Array.isArray(b.found_answers) ? b.found_answers.length : 0;
+      return bCount - aCount;
+    });
+
+    progressBody.innerHTML = rows.map(r => {
+      const foundSet = new Set(Array.isArray(r.found_answers) ? r.found_answers : []);
+      const missing = allAnswers.filter(a => !foundSet.has(a));
+      const status = r.finished_at ? "✅ Terminé" : `${foundSet.size}/${allAnswers.length}`;
+
+      return `
+        <div style="padding:12px 0;border-bottom:1px solid rgba(15,23,42,0.08);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <strong style="font-size:14px;">${esc(r.player_name)}</strong>
+            <span style="font-size:12px;color:rgba(15,23,42,0.55);">${status}</span>
+          </div>
+          ${missing.length > 0
+            ? `<div style="font-size:13px;color:rgba(15,23,42,0.7);">Manque : ${missing.map(esc).join(", ")}</div>`
+            : `<div style="font-size:13px;color:var(--primary-600);">Tout trouvé 🎉</div>`}
+        </div>
+      `;
+    }).join("");
+  }
+
+  // ====== Reset (déplacé depuis la page joueur) ======
+  async function resetQuizProgress(id) {
+    const q = quizzes.find(x => x.id === id);
+    if (!q) return;
+    if (!confirm(`Remettre "${q.title}" à zéro pour tout le monde ?\n\nLes progressions seront effacées.`)) return;
+
+    try {
+      const { error: presenceErr } = await sb
+        .from("daily_presence")
+        .update({ found_count: 0, found_answers: [], finished_at: null })
+        .eq("quiz_id", q.slug);
+      if (presenceErr) throw presenceErr;
+
+      const { error: resultsErr } = await sb
+        .from("quiz_results")
+        .delete()
+        .eq("quiz_id", q.slug);
+      if (resultsErr) throw resultsErr;
+
+      showToast("✅ Progression réinitialisée pour tout le monde.");
     } catch (e) {
       showToast("❌ Erreur : " + e.message, 4000);
     }

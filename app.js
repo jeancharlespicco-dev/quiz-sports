@@ -28,7 +28,6 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
   const playerGrid = document.getElementById("player-grid");
   const playerPill = document.getElementById("player-pill");
   const changePlayerBtn = document.getElementById("change-player-btn");
-  const resetBtn = document.getElementById("reset-btn");
   const winnerBanner = document.getElementById("winner-banner");
 
 
@@ -389,9 +388,33 @@ function updateUI() {
 }
 
 
+  // ====== Heatmap (qui a trouvé quoi) ======
+  function getFoundByMap() {
+    const map = new Map(); // answer -> Set(playerNames)
+
+    const add = (answer, name) => {
+      if (!map.has(answer)) map.set(answer, new Set());
+      map.get(answer).add(name);
+    };
+
+    if (currentPlayer) {
+      for (const a of found) add(a, currentPlayer);
+    }
+
+    for (const row of Object.values(othersState)) {
+      if (!ALLOWED_PLAYERS.has(row.player_name)) continue;
+      const arr = Array.isArray(row.found_answers) ? row.found_answers : [];
+      for (const a of arr) add(a, row.player_name);
+    }
+
+    return map;
+  }
+
   function renderList() {
     if (!quiz || !listEl) return;
     listEl.innerHTML = "";
+    const foundByMap = getFoundByMap();
+
     quiz.items.forEach(item => {
       const li = document.createElement("li");
       if (found.has(item.answer)) {
@@ -402,6 +425,14 @@ function updateUI() {
   li.classList.add("is-missing");
 
 }
+
+      const foundBy = foundByMap.get(item.answer);
+      if (foundBy && foundBy.size > 0) {
+        const dot = document.createElement("span");
+        dot.className = "heatmap-dot";
+        dot.title = `Trouvé par ${Array.from(foundBy).join(", ")}`;
+        li.appendChild(dot);
+      }
 
       listEl.appendChild(li);
     });
@@ -616,6 +647,7 @@ async function resetQuiz() {
           quiz_id: quizId,
           player_name: currentPlayer,
           found_count: found.size,
+          found_answers: Array.from(found),
           finished_at: finished ? new Date().toISOString() : null,
           updated_at: new Date().toISOString()
         });
@@ -888,6 +920,7 @@ for (const p of rows) {
 
   othersEl.appendChild(card);
 }
+renderList();
 renderLiveLadder();
 
 }
@@ -1068,11 +1101,7 @@ for (const r of rows) {
     changePlayerBtn.addEventListener("click", () => clearPlayer());
   }
 
-  if (resetBtn) {
-  resetBtn.addEventListener("click", resetQuizForEveryone);
-}
-
-if (statsBtn) {
+  if (statsBtn) {
   statsBtn.addEventListener("click", async () => {
     showScreen("stats");
     await updateQuizResultsFromPresence();

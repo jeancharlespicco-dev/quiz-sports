@@ -211,6 +211,24 @@ body{
   flex: 0 0 auto;
 }
 
+/* Heatmap : point discret indiquant que d'autres joueurs ont déjà trouvé
+   cette réponse. Survol = liste des joueurs (title natif). */
+#answers-list li .heatmap-dot{
+  margin-left: auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--blue-2);
+  opacity: 0.5;
+  flex: 0 0 auto;
+  cursor: default;
+  transition: opacity .15s, transform .15s;
+}
+#answers-list li .heatmap-dot:hover{
+  opacity: 0.95;
+  transform: scale(1.3);
+}
+
 
 /* ===== Screen helpers ===== */
 .hidden{ display:none !important; }
