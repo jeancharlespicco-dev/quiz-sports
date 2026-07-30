@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Proposer un quiz — Quiz Sports</title>
+  <link rel="stylesheet" href="styles.css?v=20260721-4" />
+  <link rel="icon" href="assets/logos/icon-color.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    .propose-wrap { max-width: 640px; margin: 0 auto; padding: 24px 16px 60px; }
+    .propose-back { display:inline-flex; align-items:center; gap:6px; font-size:14px; font-weight:650; color: var(--muted); text-decoration:none; margin-bottom: 18px; }
+    .propose-intro { font-size: 14px; color: var(--muted); margin-bottom: 24px; line-height:1.5; }
+    .propose-field { margin-bottom: 18px; }
+    .propose-field label { display:block; font-size: 13px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+    .propose-field .hint-text { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .propose-field input[type="text"],
+    .propose-field textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      font-family: var(--font);
+      font-size: 14px;
+      background: var(--card-solid);
+      color: var(--text);
+      box-sizing: border-box;
+    }
+    .propose-field textarea { resize: vertical; }
+    .propose-field textarea.json-area { min-height: 220px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+    .propose-field input:focus, .propose-field textarea:focus { outline: none; border-color: var(--blue); box-shadow: var(--focus); }
+    .propose-submit-btn {
+      width: 100%;
+      border: none;
+      border-radius: 999px;
+      padding: 15px 20px;
+      background: var(--blue);
+      color: white;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    .propose-submit-btn:disabled { opacity: 0.6; cursor: default; }
+    .propose-msg { margin-top: 16px; padding: 12px 14px; border-radius: var(--radius-sm); font-size: 14px; display:none; }
+    .propose-msg.ok  { display:block; background: rgba(34,197,94,0.12); color: var(--primary-600); }
+    .propose-msg.err { display:block; background: rgba(239,68,68,0.1); color: #B91C1C; }
+    .propose-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+  </style>
+</head>
+<body>
+
+  <div class="propose-wrap">
+    <a class="propose-back" href="index.html">← Retour à l'accueil</a>
+
+    <div class="home-header" style="margin-bottom:16px;">
+      <img src="assets/logos/logo-homepage.svg" alt="Quiz Sports" class="logo-homepage" style="max-width:160px;" />
+    </div>
+
+    <h1 class="title" style="margin-bottom:6px;">Proposer un quiz</h1>
+    <p class="propose-intro">
+      Génère le JSON avec le prompt Claude qu'on utilise pour ça, colle-le ci-dessous.
+      Ton quiz part en <strong>brouillon</strong> — il n'apparaîtra aux autres que
+      lorsque quelqu'un l'aura validé et publié depuis l'admin.
+    </p>
+
+    <div class="propose-card">
+      <div class="propose-field">
+        <label for="f-title">Titre du quiz</label>
+        <input type="text" id="f-title" placeholder="Ballons d'Or" />
+      </div>
+
+      <div class="propose-field">
+        <label for="f-slug">Identifiant (généré automatiquement)</label>
+        <input type="text" id="f-slug" placeholder="ballons-dor" />
+        <div class="hint-text">Tu peux le modifier si besoin, mais pas d'accents ni d'espaces.</div>
+      </div>
+
+      <div class="propose-field">
+        <label for="f-prompt">Consigne affichée aux joueurs</label>
+        <input type="text" id="f-prompt" placeholder="Trouve les 15 derniers vainqueurs du Ballon d'Or" />
+      </div>
+
+      <div class="propose-field">
+        <label for="f-json">JSON des réponses (collé depuis Claude)</label>
+        <textarea id="f-json" class="json-area" placeholder='[
+  { "answer": "...", "aliases": [...], "hints": [...] }
+]'></textarea>
+        <div class="hint-text">Colle exactement le bloc JSON généré par Claude, sans rien autour.</div>
+      </div>
+
+      <button class="propose-submit-btn" id="submit-btn" type="button">Envoyer le quiz</button>
+
+      <div class="propose-msg" id="msg"></div>
+    </div>
+  </div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script>
+(() => {
+  "use strict";
+
+  const SUPABASE_URL = "https://fsuyhrzllhfeomvdbfcp.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdXlocnpsbGhmZW9tdmRiZmNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MTcwOTUsImV4cCI6MjA5OTA5MzA5NX0.TmPZff6fCdhG1hWJA3Fc0kLTsi7wRwxj_lkp9SkiIOg";
+
+  let sb = null;
+  try {
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } catch (e) {
+    console.warn("[Supabase] init a échoué", e);
+  }
+
+  const fTitle  = document.getElementById("f-title");
+  const fSlug   = document.getElementById("f-slug");
+  const fPrompt = document.getElementById("f-prompt");
+  const fJson   = document.getElementById("f-json");
+  const submitBtn = document.getElementById("submit-btn");
+  const msgEl = document.getElementById("msg");
+
+  let slugEdited = false;
+  fSlug.addEventListener("input", () => { slugEdited = true; });
+  fTitle.addEventListener("input", () => {
+    if (!slugEdited) fSlug.value = slugify(fTitle.value);
+  });
+
+  function slugify(str) {
+    return String(str || "")
+      .toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60);
+  }
+
+  function showMsg(type, text) {
+    msgEl.className = "propose-msg " + type;
+    msgEl.textContent = text;
+  }
+
+  function parseAndValidateItems(raw) {
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (e) {
+      throw new Error("Le JSON n'est pas valide : " + e.message);
+    }
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      throw new Error("Le JSON doit être un tableau non vide.");
+    }
+    for (const [i, it] of parsed.entries()) {
+      if (!it || typeof it.answer !== "string" || !it.answer.trim()) {
+        throw new Error(`L'item #${i + 1} n'a pas de champ "answer" valide.`);
+      }
+      if (it.aliases && !Array.isArray(it.aliases)) {
+        throw new Error(`L'item #${i + 1} : "aliases" doit être un tableau.`);
+      }
+      if (it.hints && !Array.isArray(it.hints)) {
+        throw new Error(`L'item #${i + 1} : "hints" doit être un tableau.`);
+      }
+    }
+    return parsed.map(it => ({
+      answer: it.answer.trim(),
+      aliases: Array.isArray(it.aliases) ? it.aliases.filter(Boolean) : [],
+      hints: Array.isArray(it.hints) ? it.hints.filter(Boolean) : [],
+    }));
+  }
+
+  submitBtn.addEventListener("click", async () => {
+    msgEl.className = "propose-msg";
+    msgEl.textContent = "";
+
+    const title  = fTitle.value.trim();
+    const slug   = fSlug.value.trim();
+    const prompt = fPrompt.value.trim();
+
+    if (!title)  return showMsg("err", "⚠️ Le titre est requis.");
+    if (!slug)   return showMsg("err", "⚠️ L'identifiant est requis.");
+    if (!prompt) return showMsg("err", "⚠️ La consigne est requise.");
+    if (!sb)     return showMsg("err", "⚠️ Connexion à la base impossible pour le moment.");
+
+    let items;
+    try {
+      items = parseAndValidateItems(fJson.value);
+    } catch (e) {
+      return showMsg("err", "⚠️ " + e.message);
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Envoi…";
+
+    try {
+      // Vérifie qu'un quiz avec ce slug n'existe pas déjà
+      const { data: existing, error: checkErr } = await sb
+        .from("quizzes")
+        .select("id")
+        .eq("slug", slug)
+        .maybeSingle();
+
+      if (checkErr) throw checkErr;
+      if (existing) {
+        showMsg("err", "⚠️ Ce nom existe déjà, choisis un identifiant différent.");
+        return;
+      }
+
+      const { error } = await sb.from("quizzes").insert({
+        title,
+        slug,
+        prompt,
+        items,
+        status: "draft",
+        updated_at: new Date().toISOString(),
+      });
+
+      if (error) throw error;
+
+      showMsg("ok", "✅ Merci ! Ton quiz est envoyé, il sera publié après validation.");
+      fTitle.value = ""; fSlug.value = ""; fPrompt.value = ""; fJson.value = "";
+      slugEdited = false;
+    } catch (e) {
+      showMsg("err", "❌ Erreur : " + e.message);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Envoyer le quiz";
+    }
+  });
+})();
+</script>
+</body>
+</html>
